@@ -1,0 +1,250 @@
+
+<style>
+#erd { padding: 0; }
+#erd svg { width: 100%; }
+.mermaid-error { color: var(--color-text-danger); padding: 1rem; font-size: 13px; }
+</style>
+<div id="erd"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#3C3489' : '#EEEDFE',
+    primaryTextColor: dark ? '#CECBF6' : '#26215C',
+    primaryBorderColor: dark ? '#534AB7' : '#AFA9EC',
+    secondaryColor: dark ? '#085041' : '#E1F5EE',
+    tertiaryColor: dark ? '#3B6D11' : '#EAF3DE',
+  },
+});
+
+const diagram = `erDiagram
+  UTILISATEUR {
+    uuid id PK
+    string nom
+    string prenom
+    date date_naissance
+    string lieu_naissance
+    string telephone UK
+    string email
+    string profession
+    string numero_cnps
+    string numero_cmu
+    string statut "EN_ATTENTE|ACTIF|SUSPENDU"
+    string type_carte "BASIC|VIP"
+    string code_pin_hash
+    string mot_de_passe_hash
+    timestamp derniere_connexion
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  DOCUMENT_KYC {
+    uuid id PK
+    uuid utilisateur_id FK
+    string type_doc "CNI|PASSEPORT|SEJOUR"
+    string url_recto
+    string url_verso
+    string url_selfie
+    string statut "EN_ATTENTE|VALIDE|REJETE"
+    string motif_rejet
+    uuid valide_par FK
+    timestamp validated_at
+    timestamp created_at
+  }
+
+  COMPTE_MOBILE_MONEY {
+    uuid id PK
+    uuid utilisateur_id FK
+    string operateur "WAVE|ORANGE|MTN|MOOV"
+    string numero_compte
+    boolean est_principal
+    boolean est_actif
+    timestamp created_at
+  }
+
+  REGLE_PRELEVEMENT {
+    uuid id PK
+    uuid utilisateur_id FK
+    string code "CNPS|AMU|ASSU1|ASSU2|EPAR1|EPAR2"
+    string type_calcul "POURCENTAGE|MONTANT_FIXE"
+    decimal valeur
+    boolean est_active
+    int ordre_priorite
+    timestamp updated_at
+  }
+
+  OBJECTIF_EPARGNE {
+    uuid id PK
+    uuid utilisateur_id FK
+    string libelle
+    string icone
+    decimal montant_cible
+    decimal montant_epargne
+    timestamp created_at
+    timestamp updated_at
+  }
+
+  PAIEMENT_ENTRANT {
+    uuid id PK
+    uuid utilisateur_id FK
+    uuid compte_mm_destination_id FK
+    decimal montant_brut
+    string statut "EN_ATTENTE|SUCCES|ECHEC|PARTIELLEMENT_TRAITE"
+    string reference_externe
+    string operateur_source
+    string qr_code_ref
+    timestamp created_at
+    timestamp traite_at
+  }
+
+  OPERATION {
+    uuid id PK
+    uuid paiement_id FK
+    uuid utilisateur_id FK
+    string type "PRELEVEMENT_CNPS|PRELEVEMENT_AMU|PRELEVEMENT_ASSURANCE|PRELEVEMENT_EPARGNE|COMMISSION_EBEB|REVERSEMENT|ESCROW"
+    string reference_regle
+    decimal montant
+    string statut "SUCCES|ECHEC|EN_ATTENTE"
+    string description
+    timestamp created_at
+  }
+
+  ESCROW {
+    uuid id PK
+    uuid operation_id FK
+    uuid utilisateur_id FK
+    decimal montant
+    string statut "EN_ATTENTE|LIBERE|ALERTE_ADMIN"
+    string raison_blocage
+    timestamp created_at
+    timestamp libere_at
+  }
+
+  COTISATION {
+    uuid id PK
+    uuid utilisateur_id FK
+    int mois
+    int annee
+    decimal montant_verse
+    decimal montant_objectif
+    string statut "A_JOUR|EN_RETARD"
+    timestamp updated_at
+  }
+
+  NOTIFICATION {
+    uuid id PK
+    uuid utilisateur_id FK
+    string canal "SMS|PUSH"
+    string type "TRANSACTION|RAPPEL_COTISATION|KYC_STATUT|ALERTE"
+    string contenu
+    boolean est_envoye
+    timestamp sent_at
+    timestamp created_at
+  }
+
+  ADMINISTRATEUR {
+    uuid id PK
+    string nom
+    string email UK
+    string mot_de_passe_hash
+    string role "ADMIN|SUPER_ADMIN"
+    boolean est_actif
+    timestamp created_at
+  }
+
+  PARAMETRE_GLOBAL {
+    uuid id PK
+    string cle UK
+    string valeur
+    string description
+    uuid modifie_par FK
+    timestamp updated_at
+  }
+
+  LOG_AUDIT {
+    uuid id PK
+    uuid admin_id FK
+    string action
+    string entite_cible
+    uuid entite_id
+    jsonb donnees_avant
+    jsonb donnees_apres
+    string ip_adresse
+    timestamp created_at
+  }
+
+  SESSION_OTP {
+    uuid id PK
+    string telephone
+    string code_hash
+    string contexte "INSCRIPTION|CONNEXION|RESET_PIN"
+    boolean est_utilise
+    timestamp expire_at
+    timestamp created_at
+  }
+
+  SOLDE_UTILISATEUR {
+    uuid id PK
+    uuid utilisateur_id FK
+    decimal montant
+    timestamp updated_at
+    timestamp expire_at
+    timestamp created_at
+  }
+
+  UTILISATEUR ||--o{ DOCUMENT_KYC : "soumet"
+  UTILISATEUR ||--o{ COMPTE_MOBILE_MONEY : "possede"
+  UTILISATEUR ||--o{ REGLE_PRELEVEMENT : "configure"
+  UTILISATEUR ||--o{ OBJECTIF_EPARGNE : "definit"
+  UTILISATEUR ||--o{ PAIEMENT_ENTRANT : "recoit"
+  UTILISATEUR ||--o{ OPERATION : "concerne"
+  UTILISATEUR ||--o{ COTISATION : "cumule"
+  UTILISATEUR ||--o{ NOTIFICATION : "recoit"
+  UTILISATEUR ||--o{ ESCROW : "a"
+  PAIEMENT_ENTRANT ||--o{ OPERATION : "genere"
+  OPERATION ||--o| ESCROW : "peut_generer"
+  COMPTE_MOBILE_MONEY ||--o{ PAIEMENT_ENTRANT : "destination"
+  ADMINISTRATEUR ||--o{ DOCUMENT_KYC : "valide"
+  ADMINISTRATEUR ||--o{ LOG_AUDIT : "genere"
+  ADMINISTRATEUR ||--o{ PARAMETRE_GLOBAL : "modifie"
+`;
+
+try {
+  const { svg } = await mermaid.render('erd-svg', diagram);
+  document.getElementById('erd').innerHTML = svg;
+  document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+    const firstPath = node.querySelector('path[d]');
+    if (!firstPath) return;
+    const d = firstPath.getAttribute('d');
+    const nums = d.match(/-?[\d.]+/g)?.map(Number);
+    if (!nums || nums.length < 8) return;
+    const xs = [nums[0], nums[2], nums[4], nums[6]];
+    const ys = [nums[1], nums[3], nums[5], nums[7]];
+    const x = Math.min(...xs), y = Math.min(...ys);
+    const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', y);
+    rect.setAttribute('width', w); rect.setAttribute('height', h);
+    rect.setAttribute('rx', '8');
+    for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+      if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+    }
+    firstPath.replaceWith(rect);
+  });
+  document.querySelectorAll('#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path').forEach(p => {
+    p.setAttribute('stroke', 'none');
+  });
+} catch(e) {
+  document.getElementById('erd').innerHTML = '<p class="mermaid-error">Erreur de rendu : ' + e.message + '</p>';
+}
+</script>
