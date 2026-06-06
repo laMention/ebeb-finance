@@ -6,19 +6,25 @@ namespace App\Models;
 // use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['nom', 'prenom', 'email', 'password','date_naissance','lieu_naissance','telephone','profession','numero_cnps','numero_cmu','statut','type_carte','pays','ville','quartier','village','adresse_postale','sexe','situation_familiale','nombre_enfants','date_activation','photo_profil','derniere_connexion'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasApiTokens, SoftDeletes;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasApiTokens, SoftDeletes, HasRoles, HasUuids;
+
+    protected string $guard_name = 'web';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     /**
      * Get the attributes that should be cast.

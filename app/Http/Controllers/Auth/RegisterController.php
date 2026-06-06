@@ -48,9 +48,35 @@ class RegisterController extends Controller
     protected function validator(array $data)
     {
         return Validator::make($data, [
-            'name' => ['required', 'string', 'max:255'],
+            // INFORMATIONS PERSONNELLES
+            'nom' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'prenom' => ['required', 'string', 'max:255'],
+            'date_naissance' => ['required', 'date'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'lieu_naissance' => ['nullable', 'string','max:255'],
+            'numero_cnps' => ['nullable', 'string','max:255'],
+            'numero_cmu' => ['nullable', 'string','max:255'],
+            'profession' => ['nullable', 'string','max:255'],
+            'telephone' => ['required', 'string','min:8','max:10'],
+            'statut' => ['required', 'string','min:8','max:10'],
+            'type_carte' => ['nullable', 'string','min:8','max:10'],
+            'pays' => ['required', 'string','min:8','max:10'],
+            'ville' => ['required', 'string'],
+            'situation_familiale' => ['required', 'string',], //
+            'quartier' => ['required', 'string'],
+            'village' => ['nullable', 'string'],
+            'adresse_postale' => ['nullable', 'string'],
+            'sexe' => ['nullable', 'string'],
+            'nombre_enfants' => ['required', 'numeric'],
+    
+            // DECLARATION REVENU
+            'montant_revenu' => ['required', 'numeric'],
+
+            // INFORMATIONS PROFESSIONNELLES
+            'categorie_professionnelle' => ['required', 'string'],
+            'metier' => ['required', 'string'],
+            'date_debut_activite' => ['required', 'date'],
         ]);
     }
 
