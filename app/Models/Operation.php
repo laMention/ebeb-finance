@@ -3,14 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'type_cotisation_id', 'objectif_epargne_id', 'montant', 'type_operation', 'description', 'statut'])]
+#[Fillable(['user_id', 'type_cotisation_id', 'objectif_epargne_id', 'paiement_entrant_id', 'montant', 'type_operation', 'description', 'statut'])]
 class Operation extends Model
 {
     //
-    use SoftDeletes;
+    use SoftDeletes, HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     public function user()
     {

@@ -20,9 +20,10 @@ class AdministrateurFactory extends Factory
     {
         return [
             //
-            'nom' => $this->faker->lastName(),
-            'prenom' => $this->faker->firstName(),
-            'email' => $this->faker->unique()->safeEmail(),
+           'nom' => 'Test',
+            'prenom' => 'User',
+            'telephone' => '0700000000',
+            'email' => 'test@example.com',
             'password' => Hash::make('password'), // Mot de passe par défaut pour les tests
         ];
     }

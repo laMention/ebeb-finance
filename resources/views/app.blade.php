@@ -36,12 +36,13 @@
 
         @fonts
 
-        @viteReactRefresh
-        @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
-        <title>{{ config('app.name', 'Laravel') }}</title>
-       
+        {{-- @viteReactRefresh --}}
+        {{-- @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"]) --}}
+        {{-- <x-inertia::head> --}}
+            <title>{{ config('app.name', 'Laravel') }}</title>
+        {{-- </x-inertia::head> --}}
     </head>
     <body class="font-sans antialiased">
-       <div id="app"></div>
+        {{-- <x-inertia::app /> --}}
     </body>
 </html>
