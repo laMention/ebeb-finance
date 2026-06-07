@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['administrateur_id', 'action', 'entite_cible', 'entite_id', 'donnees_avant', 'donnees_apres', 'ip_adresse'])]
+#[Fillable(['utilisateur', 'action', 'entite_cible', 'entite_id', 'donnees_avant', 'donnees_apres', 'ip_adresse'])]
 class LogAudit extends Model
 {
     //
@@ -16,8 +16,8 @@ class LogAudit extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    public function administrateur()
-    {
-        return $this->belongsTo(Administrateur::class);
-    }
+    // public function administrateur()
+    // {
+    //     return $this->belongsTo(Administrateur::class);
+    // }
 }
