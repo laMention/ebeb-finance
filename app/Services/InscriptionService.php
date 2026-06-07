@@ -76,7 +76,7 @@ class InscriptionService
      * Définir le mot de passe (code PIN) d'un utilisateur
      * @param array $data 
      */
-    public function definirCodePin(array $data):User
+    public function definirCodePin(array $data)
     {
         return User::where('telephone', $data['telephone'])->update(
             [

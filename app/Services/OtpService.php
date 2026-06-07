@@ -121,7 +121,7 @@ class OtpService
         }
 
         // Vérifier le nombre de tentatives
-        if ($otp->attempts >= self::MAX_ATTEMPTS) {
+        if ($otp->tentatives >= self::MAX_ATTEMPTS) {
             SessionOtp::where('user_id', $user->id)->delete();
             return [
                 'success' => false,
@@ -133,7 +133,7 @@ class OtpService
         $code = str_replace(' ', '', $code);
 
         // Vérifier le code
-        if ($otp->code !== $code) {
+        if ($otp->code_otp !== $code) {
             // Incrémenter les tentatives
             SessionOtp::where('user_id', $user->id)
                 ->increment('tentatives');

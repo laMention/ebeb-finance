@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\OtpService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
+// use Illuminate\Validation\ValidationException;
 
 class OtpController extends Controller
 {
