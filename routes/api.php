@@ -15,10 +15,20 @@ Route::prefix('auth')->group(function () {
     Route::post('se-connecter',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
     Route::post('valider-connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
 
+    Route::post('connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
+    
+    
     // Routes OTP
     Route::prefix('otp')->group(function () {
         Route::post('verifier', [\App\Http\Controllers\Apiv1\AuthController::class, 'verificationOtp']);
         Route::post('renvoyer', [\App\Http\Controllers\Apiv1\AuthController::class, 'renvoyerCodeOtp']);
+        Route::post('confirmerConnexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
+    });
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('espace-utilisateur')->group(function () {
+        Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
     });
 });
 
