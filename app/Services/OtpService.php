@@ -63,12 +63,12 @@ class OtpService
         if(isset($user->email) && !empty($user->email)) {
             try {
                 
-                 $statutEnvoi = Mail::to($user->email)->send(new OtpMail($code));
+                Mail::to($user->email)->send(new OtpMail($code));
                 return [
                     'code_otp' => $code,
                     'success' => true,
                     'message' => 'Un code OTP a été envoyé à votre adresse e-mail.',
-                    'status_envoi' => $statutEnvoi
+                    // 'status_envoi' => $statutEnvoi
                 ];
             } catch (\Exception $e) {
                 // Supprimer l'OTP si l'email n'a pas pu être envoyé
