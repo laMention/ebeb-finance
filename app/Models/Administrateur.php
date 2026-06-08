@@ -43,4 +43,12 @@ class Administrateur extends Authenticatable
     {
         return $this->hasMany(ParametreGlobal::class, 'modifie_par');
     }
+    
+
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
+    }
+
 }

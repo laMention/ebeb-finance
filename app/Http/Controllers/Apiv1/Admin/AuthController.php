@@ -58,8 +58,21 @@ class AuthController extends BaseController
             return $this->sendResponse([], $result['message'] ?? 'Déconnexion réussie');
 
         } catch (\Exception $e) {
-            // return $this->throw($e);
-            return $this->sendError($e->getMessage(), [], 500);
+            return $this->throw($e);
+            // return $this->sendError($e->getMessage(), [], 500);
+        }
+    }
+
+    // Methode pour recuperer les infos de l'admin
+    public function recupererInfoProfil(Request $request){
+        try {
+            
+            $data = $this->adminService->infoProfil($request->user());
+
+            return $this->sendResponse($data, 'Profil utilisateur' );
+        }catch (\Exception $e) {
+            return $this->throw($e);
+            // return $this->sendError($e->getMessage(), [], 500);
         }
     }
 }
