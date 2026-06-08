@@ -108,13 +108,29 @@ class InscriptionService
         // }
 
         // Générer le jeton d'accès Sanctum
-        $token = $user->createToken('ebebfinance_token')->plainTextToken;
+        $token = null;
+        if (method_exists($user, 'createToken')) {
+            $token = $user->createToken('user-token')->plainTextToken;
+            $user->setRememberToken($token);
+        }
 
         // Retourner l'utilisateur et son token
         return [
             'user' => $user,
             'token' => $token
         ];
+    }
+
+    public function deconnexion($user){
+
+        $user->tokens()->delete();
+
+        $user->currentAccessToken()->get();
+
+        return [
+            'success' => true,
+            'message' => 'Déconnexion réussie.',            
+        ]; 
     }
 }
 

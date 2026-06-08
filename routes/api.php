@@ -3,12 +3,9 @@
 // use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
 
-// Dossier Inscription
-// Route::post('login',[\App\Http\Controllers\Auth\AuthController::class,'login']);
+//============================================ API FRONT =========================================
+
 Route::prefix('auth')->group(function () {
     Route::post('inscription',[\App\Http\Controllers\Apiv1\AuthController::class,'inscription']);
     Route::post('configurer-code-pin',[\App\Http\Controllers\Apiv1\AuthController::class,'definirCodePIN']);
@@ -29,6 +26,22 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('espace-utilisateur')->group(function () {
         Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
+    });
+});
+//============================================ /FIN API FRONT =========================================
+
+
+
+//============================================ API PANEL ADMINISTRATION =========================================
+Route::prefix('administration')->group(function () {
+    Route::prefix('auth')->group(function () {
+        Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);        
+    });
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('panel-admin')->group(function () {
+            Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'deconnexion']);
+
+        });
     });
 });
 
