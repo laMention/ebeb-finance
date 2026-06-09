@@ -63,3 +63,47 @@ if (!function_exists('storage_public_path')) {
         return asset('storage/' . $path);
     }
 }
+
+
+if (!function_exists('verifier_validite')) {
+    /**
+     * Vérifie si une période (pièce d'identité, abonnement, etc.) est valide
+     * 
+     * @param string|Carbon $date_debut Date de début
+     * @param string|Carbon|null $date_fin Date de fin (null = valide indéfiniment)
+     * @return bool
+     */
+    function verifier_validite($date_debut, $date_fin = null)
+    {
+        try {
+            $debut = $date_debut instanceof Carbon ? $date_debut : Carbon::parse($date_debut);
+            $maintenant = Carbon::now();
+            
+            // Vérifier que la date de début n'est pas dans le futur
+            if ($debut->isFuture()) {
+                return false;
+            }
+            
+            // Si une date de fin est fournie, vérifier qu'elle n'est pas dépassée
+            if ($date_fin) {
+                $fin = $date_fin instanceof Carbon ? $date_fin : Carbon::parse($date_fin);
+                
+                // Vérifier que la date de fin est dans le futur
+                if ($fin->isPast()) {
+                    return false;
+                }
+                
+                // Vérifier que début < fin
+                if ($debut->greaterThanOrEqualTo($fin)) {
+                    return false;
+                }
+            }
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            // En cas d'erreur de parsing, on considère invalide
+            return false;
+        }
+    }
+}

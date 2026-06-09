@@ -41,6 +41,8 @@ Route::prefix('administration')->group(function () {
         Route::prefix('panel-admin')->group(function () {
             Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'deconnexion']);
             Route::get('recuperation-info-profil',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'recupererInfoProfil']);
+            Route::post('verifier-document',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'verificationDocument']);
+            Route::post('mise-a-jour-document/{documentKYC}',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'mettreAjourDocument']);
         });
     });
 });

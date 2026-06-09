@@ -50,12 +50,12 @@ class AuthController extends BaseController
             $admin = $request->user();
 
 
-            $result = $this->adminService->deconnexion($admin);
+            $resultat = $this->adminService->deconnexion($admin);
 
-            if (!$result['success']) {
-                return $this->sendError($result['message'],[],400);
+            if (!$resultat['success']) {
+                return $this->sendError($resultat['message'],[],400);
             }
-            return $this->sendResponse([], $result['message'] ?? 'Déconnexion réussie');
+            return $this->sendResponse([], $resultat['message'] ?? 'Déconnexion réussie');
 
         } catch (\Exception $e) {
             return $this->throw($e);

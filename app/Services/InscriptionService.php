@@ -106,6 +106,18 @@ class InscriptionService
         //         'message' => 'Numéro de téléphone ou code PIN incorrect'
         //     ];
         // }
+        if($user->statut === 'SUSPENDU' ){
+            return [
+                'success' => false,
+                'message' => 'Votre compte est suspendu. Veuillez contacter le support.'
+            ];
+        }
+        if($user->statut === 'REJETE' ){
+            return [
+                'success' => false,
+                'message' => 'Votre compte est inactif. Veuillez contacter le support.'
+            ];
+        }
 
         // Générer le jeton d'accès Sanctum
         $token = null;

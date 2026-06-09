@@ -72,7 +72,7 @@
         }
 
         // Infos profil administrateur
-        public function infoProfil($admin){
+        public function infoProfil(Administrateur $admin){
             if ($admin->isSuperAdmin()) {
                 // Super-admin a toutes les permissions, pas besoin de les lister
                 $data = $admin->load(['roles']);
