@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 // use App\Http\Controllers\Controller;
+use App\Http\Requests\AjoutDocumentKYCRequest;
 use App\Http\Requests\ModifierDocumentKYCRequest;
 use App\Models\DocumentKYC;
 use App\Services\DocumentService;
@@ -122,6 +123,86 @@ class UserController extends BaseController
 
             return $this->sendResponse($resultat, $resultat['message']);
 
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    // Ajouter un document KYC
+    public function ajouterDocument(AjoutDocumentKYCRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            // Traitement du recto
+            if ($request->hasFile('url_recto')) {
+                $validated['url_recto'] = $request->file('url_recto')->store('identifications', 'public');
+            } else {
+                unset($validated['url_recto']);
+            }
+
+            // Traitement du verso
+            if ($request->hasFile('url_verso')) {
+                $validated['url_verso'] = $request->file('url_verso')->store('identifications', 'public');
+            } else {
+                unset($validated['url_verso']);
+            }
+
+            // Traitement du selfie
+            if ($request->hasFile('url_selfie')) {
+                $validated['url_selfie'] = $request->file('url_selfie')->store('identifications', 'public');
+            } else {
+                unset($validated['url_selfie']);
+            }
+
+            $resultat = $this->documentKYCService->ajouterDocument($validated);
+
+            if ($resultat['success'] === false) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+
+            $type = mettre_en_majuscule('ajout_document');
+
+            $contenu = $resultat['statut_compte'] === 'ACTIF'
+                ? [
+                    'titre'           => 'Documents ajoutés !',
+                    'message'         => "Vos documents ont été ajoutés avec succès. Votre compte est désormais activé.",
+                    'sujet'           => 'Ajout de vos documents KYC - ' . config('app.name'),
+                    'date_activation' => now()->format('d/m/Y H:i'),
+                    'type'            => $type
+                ]
+                : [
+                    'titre'           => 'Documents ajoutés !',
+                    'message'         => "Vos documents ont été ajoutés. Votre compte sera activé une fois tous les champs renseignés.",
+                    'sujet'           => 'Ajout de vos documents KYC - ' . config('app.name'),
+                    'date_activation' => now()->format('d/m/Y H:i'),
+                    'type'            => $type
+                ];
+
+            $this->notificationService->envoyerNotification(
+                $resultat['user_id'],
+                'in_app',
+                $type,
+                $contenu,
+                true
+            );
+
+            return $this->sendResponse($resultat, $resultat['message']);
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    // Supprimer un document
+    public function supprimerDocument(DocumentKYC $documentKYC){
+        try {
+            $resultat = $this->documentKYCService->ajouterDocument($documentKYC);
+
+            if ($resultat['success'] === false) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+            return $this->sendResponse([], $resultat['message']);
         } catch (\Exception $e) {
             return $this->throw($e);
         }

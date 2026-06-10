@@ -408,4 +408,103 @@ class DocumentService
             ];
         }
     }
+
+    // Suprimer un document
+    public function supprimerDocument(DocumentKYC $documentKYC){
+        try {
+            if($documentKYC->delete()){
+                return [
+                    'success'=> true,
+                    'message'=> 'Document supprimé avec succès'
+                    ];
+            }else{
+                return [
+                    'success'=> false,
+                    'message'=> 'Impossible de supprimer'
+                    ];
+            }
+
+
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    // Ajouter un document KYC
+    public function ajouterDocument(array $data)
+    {
+        try {
+            // Vérifier la validité des dates si fournies
+            if (isset($data['document_etablie_le'], $data['document_expire_le'])) {
+                if (!verifier_validite($data['document_etablie_le'], $data['document_expire_le'])) {
+                    return [
+                        'success' => false,
+                        'message' => 'Le document est expiré ou invalide'
+                    ];
+                }
+            }
+
+            $documentKYC = DocumentKYC::create([
+                'user_id'             => $data['user_id'],
+                'type_document'       => mettre_en_majuscule($data['type_document']),
+                'numero_document'     => mettre_en_majuscule($data['numero_document']),
+                'document_etablie_le' => $data['document_etablie_le'],
+                'document_expire_le'  => $data['document_expire_le'],
+                'url_recto'           => $data['url_recto'] ?? null,
+                'url_verso'           => $data['url_verso'] ?? null,
+                'url_selfie'          => $data['url_selfie'] ?? null,
+                'statut'              => 'EN_ATTENTE',
+            ]);
+
+            // Vérifier si tous les champs requis sont remplis
+            $champsRequis = ['type_document', 'numero_document', 'document_etablie_le', 'document_expire_le', 'url_recto', 'url_verso'];
+            $tousChampsRemplis = true;
+
+            foreach ($champsRequis as $champ) {
+                if (is_null($documentKYC->$champ) || $documentKYC->$champ === '') {
+                    $tousChampsRemplis = false;
+                    break;
+                }
+            }
+
+            $statutCompte = null;
+
+            if ($tousChampsRemplis) {
+                $documentKYC->update([
+                    'statut'       => 'VALIDE',
+                    'valide_par'   => auth()->id(),
+                    'validated_at' => Carbon::now(),
+                ]);
+
+                if ($documentKYC->user_id) {
+                    $user = User::find($documentKYC->user_id);
+                    if ($user) {
+                        $user->update(['statut' => 'ACTIF']);
+                        $statutCompte = 'ACTIF';
+                    }
+                }
+            }
+
+            return [
+                'success'       => true,
+                'message'       => 'Document ajouté avec succès',
+                'document'      => $documentKYC->fresh(),
+                'statut_compte' => $statutCompte,
+                'user_id'       => $documentKYC->user_id,
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de l\'ajout du document', [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Erreur lors de l\'ajout: ' . $e->getMessage()
+            ];
+        }
+    }
 }
