@@ -26,7 +26,23 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('espace-utilisateur')->group(function () {
         Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
+    
+        // Règles de prélèvement
+        Route::prefix('regle-prelevements')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'index']);
+            Route::get('/types', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'types']);
+            Route::post('/configurer-regle-prelevement', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurerRegleTypeCotisation']);
+            Route::post('/configurer', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurer']);
+            Route::post('/reordonner', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'reordonner']);
+            Route::get('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'show']);
+            Route::delete('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'destroy']);
+            Route::patch('/{reglePrelevement}/statut', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'basculerStatut']);
+        });
+
+    
     });
+
+    
 });
 //============================================ /FIN API FRONT =========================================
 
