@@ -39,7 +39,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('/{reglePrelevement}/statut', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'basculerStatut']);
         });
 
-    
+        // Types de cotisations personnalisés
+        Route::prefix('types-cotisation-personnalises')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'store']);
+            Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'show']);
+            Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'update']);
+            Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'destroy']);
+        });
+
+
     });
 
     

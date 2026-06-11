@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['libelle', 'code','categorie','est_obligatoire','est_actif','description'])]
+#[Fillable(['libelle', 'code','categorie','est_obligatoire','est_actif','description','user_id'])]
 class TypeCotisation extends Model
 {
     //
@@ -29,5 +29,9 @@ class TypeCotisation extends Model
     public function cotisations()
     {
         return $this->hasMany(Cotisation::class, 'type_cotisation_id');
+    }
+
+    public function user(){
+        return $this->belongsTo(User::class);
     }
 }

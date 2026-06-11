@@ -330,6 +330,7 @@ class ReglePrelevementService
 
     /**
      * Récupérer tous les types de cotisations avec les règles configurées par l'utilisateur.
+     * Inclut les types de cotisations globaux (est_actif) ET les types personnalisés de l'utilisateur.
      * Utilisé par l'interface mobile pour afficher les types et pré-remplir les champs.
      */
     public function obtenirTypeCotisationsAvecRegles(string $userId): array
@@ -345,10 +346,19 @@ class ReglePrelevementService
                 ];
             }
 
-            // Récupérer tous les types de cotisations actifs
-            $types = TypeCotisation::where('est_actif', true)
+            // Récupérer les types de cotisations globaux (user_id = NULL) et actifs
+            $typesGlobaux = TypeCotisation::where('est_actif', true)
+                ->whereNull('user_id')
                 ->orderBy('libelle')
                 ->get();
+
+            // Récupérer les types de cotisations personnalisés de l'utilisateur
+            $typesPersonnalises = TypeCotisation::where('user_id', $userId)
+                ->orderBy('libelle')
+                ->get();
+
+            // Fusionner les deux ensembles
+            $types = $typesGlobaux->concat($typesPersonnalises);
 
             // Récupérer les règles de l'utilisateur indexées par type_cotisation_id
             $reglesUtilisateur = $user->reglePrelevements()
@@ -366,6 +376,7 @@ class ReglePrelevementService
                     'categorie'           => $type->categorie,
                     'est_obligatoire'     => $type->est_obligatoire,
                     'description'         => $type->description,
+                    'est_personnalise'    => !is_null($type->user_id),
                     'regle'               => $regle ? [
                         'id'             => $regle->id,
                         'taux'           => $regle->type_calcul === 'POURCENTAGE' ? $regle->valeur : 0,
@@ -387,8 +398,9 @@ class ReglePrelevementService
                 'message'               => 'Types de cotisations récupérés avec succès',
                 'data'                  => $typesAvecRegles,
                 'total_pourcentages'    => $sommePourcentages,
-                'total_types_cotisation'           => $typesAvecRegles->count(),
+                'total_types'           => $typesAvecRegles->count(),
                 'total_configures'      => $reglesUtilisateur->count(),
+                'total_personnalises'   => $typesPersonnalises->count(),
             ];
 
         } catch (\Exception $e) {
