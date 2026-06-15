@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'operateur', 'numero_compte', 'est_principal', 'est_actif'])]
+#[Fillable(['user_id', 'operateur', 'numero_compte', 'est_principal', 'est_actif','moyen_paiement_id'])]
 class CompteMobileMoney extends Model
 {
     use SoftDeletes,HasUuids;
     //
+    protected $table = 'compte_mobile_moneys';
     public $incrementing = false;
     protected $keyType = 'string';
 
@@ -23,5 +24,14 @@ class CompteMobileMoney extends Model
     public function paiements_entrants()
     {
         return $this->hasMany(PaiementEntrant::class, 'compte_mobile_money_id');
+    }
+    public function moyen_paiement()
+    {
+        return $this->belongsTo(MoyenPaiement::class,'moyen_paiement_id');
+    }
+
+    public function qrcode_paiement()
+    {
+        return $this->hasOne(QrcodePaiement::class);
     }
 }

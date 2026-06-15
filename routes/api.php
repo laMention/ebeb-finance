@@ -39,6 +39,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('/{reglePrelevement}/statut', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'basculerStatut']);
         });
 
+        // Comptes Mobile Money utilisateur
+        Route::prefix('comptes-mobile-money')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'store']);
+        });
+
         // Types de cotisations personnalisés
         Route::prefix('types-cotisation-personnalises')->group(function () {
             Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
@@ -77,6 +83,25 @@ Route::prefix('administration')->group(function () {
                 Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'update']);
                 Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'destroy']);
                 Route::patch('/{typeCotisation}/statut', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'basculerStatut']);
+            });
+
+            // Moyens de paiement
+            Route::prefix('moyens-paiement')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'index']);
+                Route::post('/', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'store']);
+                Route::get('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'show']);
+                Route::match(['PUT', 'POST'],'/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'update']);
+                Route::delete('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'destroy']);
+                Route::patch('/{moyenPaiement}/statut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'basculerStatut']);
+                Route::patch('/{moyenPaiement}/par-defaut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'definirParDefaut']);
+            });
+
+            Route::prefix('parametres-globaux')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
+                Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store']);
+                Route::get('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'show']);
+                Route::put('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'update']);
+                Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy']);
             });
         });
     });
