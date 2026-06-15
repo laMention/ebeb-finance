@@ -31,6 +31,7 @@ class StoreCompteMobileMoneyRequest extends FormRequest
                 },
             ],
             'numero_compte' => ['nullable', 'string', 'max:30'],
+            'est_principal' => ['boolean']
         ];
     }
 
@@ -43,6 +44,8 @@ class StoreCompteMobileMoneyRequest extends FormRequest
 
             'numero_compte.string' => 'Le numéro de compte doit être une chaîne de caractères.',
             'numero_compte.max'    => 'Le numéro de compte ne peut pas dépasser 30 caractères.',
+
+            'est_principal.boolean' => 'Le champ est_principal doit être vrai ou faux.'
         ];
     }
 }

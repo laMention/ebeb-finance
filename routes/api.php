@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('comptes-mobile-money')->group(function () {
             Route::get('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'index']);
             Route::post('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'store']);
+            Route::patch('/{compteMobileMoney}/principal', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'definirPrincipal']);
         });
 
         // Types de cotisations personnalisés

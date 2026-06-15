@@ -65,6 +65,7 @@ class CompteMobileMoneyService
             }
 
             $numeroCompte = $data['numero_compte'] ?? $user->telephone;
+            $estPrincipal = (bool) $data['est_principal'] ??  $moyen->par_defaut;
 
             if (empty($numeroCompte)) {
                 return [
@@ -80,7 +81,7 @@ class CompteMobileMoneyService
                 'moyen_paiement_id'  => $moyen->id,
                 'operateur'          => $moyen->operateur,
                 'numero_compte'      => $numeroCompte,
-                'est_principal'      => (bool) $moyen->par_defaut,
+                'est_principal'      => (bool) $estPrincipal,
                 'est_actif'          => true,
             ]);
 
@@ -114,6 +115,70 @@ class CompteMobileMoneyService
             return [
                 'success' => false,
                 'message' => 'Erreur lors de la création: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    public function definirComptePrincipal(User $user, CompteMobileMoney $compte): array
+    {
+        try {
+            if ($compte->user_id !== $user->id) {
+                return [
+                    'success' => false,
+                    'message' => 'Ce compte ne vous appartient pas.',
+                ];
+            }
+
+            if (!$compte->est_actif) {
+                return [
+                    'success' => false,
+                    'message' => 'Impossible de définir un compte inactif comme compte principal.',
+                ];
+            }
+
+            if ($compte->est_principal) {
+                return [
+                    'success' => false,
+                    'message' => 'Ce compte est déjà votre compte principal.',
+                ];
+            }
+
+            DB::beginTransaction();
+
+            CompteMobileMoney::where('user_id', $user->id)
+                ->where('est_principal', true)
+                ->update(['est_principal' => false]);
+
+            $compte->update(['est_principal' => true]);
+
+            DB::commit();
+
+            $compte->load(['moyen_paiement', 'qrcode_paiement']);
+
+            \Log::info('Compte Mobile Money principal défini', [
+                'user_id'   => $user->id,
+                'compte_id' => $compte->id,
+                'operateur' => $compte->operateur,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => "Compte {$compte->operateur} défini comme compte principal.",
+                'data'    => $compte,
+            ];
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            \Log::error('Erreur lors de la définition du compte principal', [
+                'user_id'   => $user->id,
+                'compte_id' => $compte->id,
+                'error'     => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage(),
             ];
         }
     }
