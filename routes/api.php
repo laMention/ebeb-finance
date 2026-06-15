@@ -48,6 +48,14 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('/{compteMobileMoney}/principal', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'definirPrincipal']);
         });
 
+        // Objectif d'épargne
+        Route::prefix('objectif-epargne')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'store']);
+            Route::patch('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'update']);
+            Route::delete('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'destroy']);
+        });
+
         // Types de cotisations personnalisés
         Route::prefix('types-cotisation-personnalises')->group(function () {
             Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
