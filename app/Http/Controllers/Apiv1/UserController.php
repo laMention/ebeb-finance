@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Apiv1;
 use App\Http\Controllers\BaseController;
 // use App\Http\Controllers\Controller;
 use App\Http\Requests\AjoutDocumentKYCRequest;
+use App\Http\Requests\UpdateCodePinRequest;
+use App\Http\Requests\UpdateProfilRequest;
 use App\Http\Resources\UserResource;
 use App\Services\NotificationService;
 use App\Services\UserService;
@@ -36,6 +38,38 @@ class UserController extends BaseController
         return new UserResource($user);
  
     }
+    public function mettreAjourProfil(UpdateProfilRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            $resultat = $this->userService->mettreAjourProfil($request->user(), $validated);
+
+            return $this->sendResponse($resultat, 'Profil mis à jour avec succès.');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    public function mettreAjourCodePin(UpdateCodePinRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            $resultat = $this->userService->mettreAjourCodePin($request->user(), $validated);
+
+            if ($resultat['success'] === false) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+
+            return $this->sendResponse([], 'Code PIN mis à jour avec succès.');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
     public function ajouterDocument(AjoutDocumentKYCRequest $request)
     {
         try {
