@@ -33,7 +33,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
         Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
         Route::patch('code-pin', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourCodePin']);
-
+        Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\UserController::class,'deconnexion']);
+        
         // Paiements reçus
         Route::prefix('paiements')->group(function () {
             Route::get('/', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'index']);

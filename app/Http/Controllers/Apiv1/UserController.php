@@ -134,4 +134,21 @@ class UserController extends BaseController
             return $this->throw($e);
         }
     }
+
+    public function deconnexion(Request $request){
+        try {
+
+            $user = $request->user();
+
+            $resultat = $this->userService->deconnexion($user);
+
+            if (!$resultat['success']) {
+                return $this->sendError('Déconnexion impossible? Veuillez réessayer',[],400);
+            }
+            return $this->sendResponse([], $resultat['message'] ?? 'Déconnexion réussie');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
 }
