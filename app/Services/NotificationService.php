@@ -39,12 +39,14 @@ class NotificationService
             
             // Créer la notification dans la base de données
             $notification = Notification::create([
-                'user_id' => $userId,
-                'canal' => mettre_en_majuscule($canal),
-                'type' => mettre_en_majuscule($type),
-                'contenu' => $contenuJson,
+                'user_id'    => $userId,
+                'canal'      => mettre_en_majuscule($canal),
+                'type'       => mettre_en_majuscule($type),
+                'titre'      => $contenu['titre'] ?? null,
+                'contenu'    => $contenuJson,
                 'est_envoye' => false,
-                'envoye_le' => $immediat ? Carbon::now() : null
+                'est_lu'     => false,
+                'envoye_le'  => $immediat ? Carbon::now() : null,
             ]);
 
             // Si immédiat, envoyer la notification
@@ -299,20 +301,107 @@ class NotificationService
     public function marquerCommeLue(string $notificationId): array
     {
         $notification = Notification::find($notificationId);
-        
+
         if (!$notification) {
-            return [
-                'success' => false,
-                'message' => 'Notification non trouvée'
-            ];
+            return ['success' => false, 'message' => 'Notification non trouvée'];
         }
-        
-        // Si vous avez un champ 'lue_le' dans la table
-        // $notification->update(['lue_le' => now()]);
-        
-        return [
-            'success' => true,
-            'message' => 'Notification marquée comme lue'
-        ];
+
+        $notification->update(['est_lu' => true, 'lu_le' => now()]);
+
+        return ['success' => true, 'message' => 'Notification marquée comme lue'];
+    }
+
+    /**
+     * Marquer toutes les notifications d'un utilisateur comme lues.
+     */
+    public function marquerToutesLues(string $userId): void
+    {
+        Notification::where('user_id', $userId)
+            ->where('est_lu', false)
+            ->update(['est_lu' => true, 'lu_le' => now()]);
+    }
+
+    /**
+     * Nombre de notifications non lues d'un utilisateur.
+     */
+    public function compterNonLues(string $userId): int
+    {
+        return Notification::where('user_id', $userId)
+            ->where('est_lu', false)
+            ->count();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Notifications financières
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function notifierPaiementRecu(User $user, float $montant): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'PAIEMENT_RECU', [
+            'titre'   => 'Paiement reçu avec succès',
+            'message' => "Paiement reçu avec succès. Montant reçu : {$this->fcfa($montant)}.",
+        ]);
+    }
+
+    public function notifierDeductionEpargne(User $user, float $montant, string $libelleObjectif): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'DEDUCTION_EPARGNE', [
+            'titre'   => 'Épargne automatique',
+            'message' => "Un montant de {$this->fcfa($montant)} a été affecté à votre objectif d'épargne « {$libelleObjectif} ».",
+        ]);
+    }
+
+    public function notifierDeductionCotisation(User $user, float $montant, string $libelleCotisation): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'DEDUCTION_COTISATION', [
+            'titre'   => "Cotisation {$libelleCotisation}",
+            'message' => "Un montant de {$this->fcfa($montant)} a été affecté à votre cotisation {$libelleCotisation}.",
+        ]);
+    }
+
+    public function notifierDeductionAssurance(User $user, float $montant, string $libelleAssurance): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'DEDUCTION_ASSURANCE', [
+            'titre'   => "Assurance {$libelleAssurance}",
+            'message' => "Un montant de {$this->fcfa($montant)} a été affecté à votre assurance {$libelleAssurance}.",
+        ]);
+    }
+
+    public function notifierCommission(User $user, float $montant): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'COMMISSION_PLATEFORME', [
+            'titre'   => 'Commission plateforme',
+            'message' => "Une commission de {$this->fcfa($montant)} a été prélevée conformément aux conditions d'utilisation de la plateforme.",
+        ]);
+    }
+
+    public function notifierObjectifEpargneAtteint(User $user, string $libelleObjectif): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'OBJECTIF_ATTEINT', [
+            'titre'   => 'Objectif atteint ! 🎉',
+            'message' => "Félicitations ! Votre objectif d'épargne « {$libelleObjectif} » a été atteint.",
+        ]);
+    }
+
+    public function notifierObjectifCotisationAtteint(User $user, string $libelleCotisation): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'OBJECTIF_ATTEINT', [
+            'titre'   => 'Objectif annuel atteint ! 🎉',
+            'message' => "Félicitations ! Votre objectif annuel de cotisation {$libelleCotisation} a été atteint.",
+        ]);
+    }
+
+    public function notifierReportCotisation(User $user, float $montant, string $libelleCotisation): void
+    {
+        $prochaineAnnee = now()->year + 1;
+        $this->envoyerNotification($user->id, 'IN_APP', 'REPORT_COTISATION', [
+            'titre'   => 'Report de cotisation',
+            'message' => "Votre objectif annuel étant atteint, un montant de {$this->fcfa($montant)} est désormais enregistré comme avance sur votre cotisation {$libelleCotisation} pour {$prochaineAnnee}.",
+        ]);
+    }
+
+    private function fcfa(float $montant): string
+    {
+        return number_format($montant, 0, ',', ' ') . ' FCFA';
     }
 }

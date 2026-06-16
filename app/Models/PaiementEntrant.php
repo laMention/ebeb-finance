@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'compte_mobile_money_id', 'montant_brut', 'statut', 'reference_externe','operateur_source','qr_code_ref'])]
+#[Fillable(['user_id', 'compte_mobile_money_id', 'montant_brut', 'statut', 'reference_externe','operateur_source','qr_code_ref','description'])]
 class PaiementEntrant extends Model
 {
     //

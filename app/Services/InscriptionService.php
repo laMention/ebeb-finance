@@ -20,6 +20,7 @@ class InscriptionService
             
             // Création de l'utilisateur
             $user = User::create([
+                'reference' => generer_reference_user(),
                 'nom' => mettre_en_majuscule($data['nom']),
                 'prenom' => mettre_en_majuscule($data['prenom']),
                 'numero_cnps' => $data['numero_cnps'] ?? '',

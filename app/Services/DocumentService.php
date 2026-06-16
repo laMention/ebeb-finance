@@ -168,7 +168,8 @@ class DocumentService
 
                 // Activer le compte utilisateur
                 $user->update([
-                    "statut" => mettre_en_majuscule("ACTIF")
+                    "statut" => mettre_en_majuscule("ACTIF"),
+                    "date_activation" => $this->mettreAjourDateActivationCompteUser($user)
                 ]);
 
                 // Envoyer une notification d'activation de compte
@@ -339,8 +340,12 @@ class DocumentService
               
                 if ($documentKYC->user_id) {
                     $user = User::find($documentKYC->user_id);
+
                     if ($user) {
-                        $user->update(['statut' => 'ACTIF']);
+                        $user->update([
+                            'statut' => 'ACTIF',
+                            'date_activation' => $this->mettreAjourDateActivationCompteUser($user)
+                        ]);
                         $statutCompte = 'ACTIF';
                     }
                 }
@@ -481,8 +486,12 @@ class DocumentService
 
                 if ($documentKYC->user_id) {
                     $user = User::find($documentKYC->user_id);
+                    
                     if ($user) {
-                        $user->update(['statut' => 'ACTIF']);
+                        $user->update([
+                            'statut' => 'ACTIF',
+                            'date_activation' => $this->mettreAjourDateActivationCompteUser($user)
+                        ]);
                         $statutCompte = 'ACTIF';
                     }
                 }
@@ -506,5 +515,10 @@ class DocumentService
                 'message' => 'Erreur lors de l\'ajout: ' . $e->getMessage()
             ];
         }
+    }
+
+    private function mettreAjourDateActivationCompteUser($user){
+        $dateActivation = $user->statut === 'EN_ATTENTE' ? Carbon::now() : $user->date_activation;
+        return $dateActivation;
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 //  Methode pour mettre en majuscule
 if (!function_exists('mettre_en_majuscule')) {
     function mettre_en_majuscule(string $string){
@@ -106,4 +107,17 @@ if (!function_exists('verifier_validite')) {
             return false;
         }
     }
+}
+
+// generer la reference de l'adherent (utilisateur)
+
+if (!function_exists('generer_reference_user')) {
+    function generer_reference_user()
+    {
+        $reference = 'EBEB-' . strtoupper(Str::random(10));
+
+        return $reference;
+
+    }
+
 }

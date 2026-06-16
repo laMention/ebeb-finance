@@ -23,11 +23,28 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+// Webhook paiements (public — validé par X-Webhook-Secret)
+Route::prefix('paiements')->group(function () {
+    Route::post('webhook', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'webhook']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('espace-utilisateur')->group(function () {
         Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
         Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
         Route::patch('code-pin', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourCodePin']);
+
+        // Paiements reçus
+        Route::prefix('paiements')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'index']);
+            Route::get('/{paiementId}', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'show']);
+        });
+
+        // Opérations / historique des transactions
+        Route::prefix('operations')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\OperationController::class, 'index']);
+            Route::get('/{operation}', [\App\Http\Controllers\Apiv1\OperationController::class, 'show']);
+        });
     
         // Règles de prélèvement
         Route::prefix('regle-prelevements')->group(function () {
@@ -65,6 +82,13 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'destroy']);
         });
 
+        // Notifications
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Apiv1\NotificationController::class, 'index']);
+            Route::get('/non-lues', [\App\Http\Controllers\Apiv1\NotificationController::class, 'nombreNonLues']);
+            Route::patch('/marquer-toutes-lues', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerToutesLues']);
+            Route::patch('/{notification}/lue', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerLue']);
+        });
 
     });
 
