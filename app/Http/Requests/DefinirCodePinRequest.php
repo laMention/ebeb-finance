@@ -24,7 +24,7 @@ class DefinirCodePinRequest extends FormRequest
     {
         return [
             //
-            'telephone' => 'required|size:10|exists:users,telephone',
+            'telephone' => 'required|min:10|max:14|exists:users,telephone',
             'password' => 'required|size:6',
         ];
     }
@@ -32,7 +32,8 @@ class DefinirCodePinRequest extends FormRequest
     {
         return [
             'telephone.required' => "Le numéro de téléphone est obligatoire.",
-            'telephone.size'     => "Le numéro de téléphone doit contenir exactement :size chiffres.",
+            'telephone.min'     => "Le numéro de téléphone doit contenir au moins :min chiffres.",
+            'telephone.max'     => "Le numéro de téléphone doit contenir au maiximum :max chiffres.",
             'telephone.exists'   => "Ce numéro de téléphone est invalide ou n\'existe pas.",
 
             'password.required' => "Le code OTP est obligatoire pour vérifier le numéro de téléphone.",

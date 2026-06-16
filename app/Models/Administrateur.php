@@ -34,13 +34,21 @@ class Administrateur extends Authenticatable
         'password' => 'hashed',
     ];
 
-    public function logAudits()
-    {
-        return $this->hasMany(LogAudit::class);
-    }
+    // public function logAudits()
+    // {
+    //     return $this->hasMany(LogAudit::class);
+    // }
 
     public function parametresGlobaux()
     {
         return $this->hasMany(ParametreGlobal::class, 'modifie_par');
     }
+    
+
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
+    }
+
 }

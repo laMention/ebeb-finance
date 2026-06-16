@@ -7,13 +7,24 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'type_cotisation_id', 'mois', 'annee', 'montant_verse', 'montant_objectif', 'statut', 'numero_adherent', 'date_paiement'])]
+#[Fillable(['user_id', 'type_cotisation_id', 'mois', 'annee', 'montant_verse', 'montant_objectif', 'montant_restant', 'statut', 'numero_adherent', 'date_paiement', 'date_debut', 'date_fin'])]
 class Cotisation extends Model
 {
-    //
-    use SoftDeletes,HasUuids;
+    use SoftDeletes, HasUuids;
     public $incrementing = false;
-    protected $keyType = 'string';
+    protected $keyType   = 'string';
+
+    protected function casts(): array
+    {
+        return [
+            'montant_verse'    => 'float',
+            'montant_objectif' => 'float',
+            'montant_restant'  => 'float',
+            'date_debut'       => 'date',
+            'date_fin'         => 'date',
+            'date_paiement'    => 'datetime',
+        ];
+    }
 
     public function user()
     {

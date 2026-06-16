@@ -20,33 +20,34 @@ class InscriptionService
             
             // Création de l'utilisateur
             $user = User::create([
+                'reference' => generer_reference_user(),
                 'nom' => mettre_en_majuscule($data['nom']),
                 'prenom' => mettre_en_majuscule($data['prenom']),
-                'numero_cnps' => $data['numero_cnps'],
-                'numero_cmu' => $data['numero_cmu'],
+                'numero_cnps' => $data['numero_cnps'] ?? '',
+                'numero_cmu' => $data['numero_cmu'] ?? '',
                 'situation_familiale' => mettre_en_majuscule($data['situation_familiale']),
                 'sexe' => mettre_en_majuscule($data['sexe']),
-                'date_naissance' => $data['date_naissance'],
-                'email' => $data['email'],
-                'lieu_naissance' => mettre_en_majuscule($data['lieu_naissance']),
+                'date_naissance' => $data['date_naissance'] ?? '',
+                'email' => $data['email'] ?? '',
+                'lieu_naissance' => mettre_en_majuscule($data['lieu_naissance']) ?? '',
                 'profession' => mettre_en_majuscule($data['profession']),
                 'telephone' => ajout_prefix_telephone($data['telephone']),
-                'ville' => $data['ville'],
-                'quartier' => $data['quartier'],
-                'village' => $data['village'],
-                'adresse_postale' => $data['adresse_postale'],
+                'ville' => mettre_en_majuscule($data['ville']) ?? '',
+                'quartier' => mettre_en_majuscule($data['quartier']) ?? '',
+                'village' => mettre_en_majuscule($data['village']) ?? '',
+                'adresse_postale' => mettre_en_majuscule($data['adresse_postale']) ?? '',
                 'pays' => mettre_en_majuscule("côte d'ivoire"),
             ]);
 
             // Enregistrer les informations professionnelles
             InformationProfessionnelle::create([
                 'user_id' => $user->id,
-                'categorie_professionnelle' => mettre_en_majuscule($data['categorie_professionnelle']),
-                'metier' => mettre_en_majuscule($data['metier']),
-                'date_debut_activite' => $data['date_debut_activite'],
-                'ville_activite' => mettre_en_majuscule($data['ville_activite']),
-                'quartier_activite' => mettre_en_majuscule($data['quartier_activite']),
-                'commune_sous_prefecture_activite' => mettre_en_majuscule($data['commune_sous_prefecture_activite']),
+                'categorie_professionnelle' => mettre_en_majuscule($data['categorie_professionnelle']) ?? '',
+                'metier' => mettre_en_majuscule($data['metier']) ?? '',
+                'date_debut_activite' => $data['date_debut_activite'] ?? '',
+                'ville_activite' => mettre_en_majuscule($data['ville_activite']) ?? '',
+                'quartier_activite' => mettre_en_majuscule($data['quartier_activite']) ?? '',
+                'commune_sous_prefecture_activite' => mettre_en_majuscule($data['commune_sous_prefecture_activite']) ?? '',
             ]);
 
             // Enregistrer la déclaration de revenu
@@ -63,9 +64,13 @@ class InscriptionService
             
             DocumentKYC::create([
                 'user_id' => $user->id,
-                'url_recto' => $fichiersKyc['recto'],
-                'url_verso' => $fichiersKyc['verso'],
-                'url_selfie' => $fichiersKyc['selfie'],
+                'type_document' => mettre_en_majuscule($data['type_document']),
+                'numero_document' => mettre_en_majuscule($data['numero_document']),
+                'document_etablie_le' => $data['document_etablie_le'] ?? '',
+                'document_expire_le' => $data['document_expire_le'] ?? '',
+                'url_recto' => $fichiersKyc['recto'] ?? '',
+                'url_verso' => $fichiersKyc['verso'] ?? '',
+                'url_selfie' => $fichiersKyc['selfie'] ?? '',
             ]);
 
             return $user;
@@ -76,7 +81,7 @@ class InscriptionService
      * Définir le mot de passe (code PIN) d'un utilisateur
      * @param array $data 
      */
-    public function definirCodePin(array $data):User
+    public function definirCodePin(array $data)
     {
         return User::where('telephone', $data['telephone'])->update(
             [
@@ -102,15 +107,43 @@ class InscriptionService
         //         'message' => 'Numéro de téléphone ou code PIN incorrect'
         //     ];
         // }
+        if($user->statut === 'SUSPENDU' ){
+            return [
+                'success' => false,
+                'message' => 'Votre compte est suspendu. Veuillez contacter le support.'
+            ];
+        }
+        if($user->statut === 'REJETE' ){
+            return [
+                'success' => false,
+                'message' => 'Votre compte est inactif. Veuillez contacter le support.'
+            ];
+        }
 
         // Générer le jeton d'accès Sanctum
-        $token = $user->createToken('ebebfinance_token')->plainTextToken;
+        $token = null;
+        if (method_exists($user, 'createToken')) {
+            $token = $user->createToken('user-token')->plainTextToken;
+            $user->setRememberToken($token);
+        }
 
         // Retourner l'utilisateur et son token
         return [
             'user' => $user,
             'token' => $token
         ];
+    }
+
+    public function deconnexion($user){
+
+        $user->tokens()->delete();
+
+        $user->currentAccessToken()->get();
+
+        return [
+            'success' => true,
+            'message' => 'Déconnexion réussie.',            
+        ]; 
     }
 }
 

@@ -15,7 +15,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['nom', 'prenom', 'email', 'password','date_naissance','lieu_naissance','telephone','profession','numero_cnps','numero_cmu','statut','type_carte','pays','ville','quartier','village','adresse_postale','sexe','situation_familiale','nombre_enfants','date_activation','photo_profil','derniere_connexion'])]
+#[Fillable(['reference','nom', 'prenom', 'email', 'password','date_naissance','lieu_naissance','telephone','profession','numero_cnps','numero_cmu','statut','type_carte','pays','ville','quartier','village','adresse_postale','sexe','situation_familiale','nombre_enfants','date_activation','photo_profil','derniere_connexion'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -106,5 +106,9 @@ class User extends Authenticatable
     public function declarationRevenu()
     {
         return $this->hasOne(DeclarationRevenu::class);
+    }
+
+    public function typeCotisations(){
+        return $this->hasMany(TypeCotisation::class);
     }
 }

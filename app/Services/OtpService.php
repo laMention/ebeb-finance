@@ -63,12 +63,12 @@ class OtpService
         if(isset($user->email) && !empty($user->email)) {
             try {
                 
-                 $statutEnvoi = Mail::to($user->email)->send(new OtpMail($code));
+                Mail::to($user->email)->send(new OtpMail($code));
                 return [
                     'code_otp' => $code,
                     'success' => true,
                     'message' => 'Un code OTP a été envoyé à votre adresse e-mail.',
-                    'status_envoi' => $statutEnvoi
+                    // 'status_envoi' => $statutEnvoi
                 ];
             } catch (\Exception $e) {
                 // Supprimer l'OTP si l'email n'a pas pu être envoyé
@@ -121,7 +121,7 @@ class OtpService
         }
 
         // Vérifier le nombre de tentatives
-        if ($otp->attempts >= self::MAX_ATTEMPTS) {
+        if ($otp->tentatives >= self::MAX_ATTEMPTS) {
             SessionOtp::where('user_id', $user->id)->delete();
             return [
                 'success' => false,
@@ -133,7 +133,7 @@ class OtpService
         $code = str_replace(' ', '', $code);
 
         // Vérifier le code
-        if ($otp->code !== $code) {
+        if ($otp->code_otp !== $code) {
             // Incrémenter les tentatives
             SessionOtp::where('user_id', $user->id)
                 ->increment('tentatives');
