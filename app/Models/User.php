@@ -14,6 +14,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\PortefeuilleEpargne;
 
 #[Fillable(['reference','nom', 'prenom', 'email', 'password','date_naissance','lieu_naissance','telephone','profession','numero_cnps','numero_cmu','statut','type_carte','pays','ville','quartier','village','adresse_postale','sexe','situation_familiale','nombre_enfants','date_activation','photo_profil','derniere_connexion'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -110,5 +111,19 @@ class User extends Authenticatable
 
     public function typeCotisations(){
         return $this->hasMany(TypeCotisation::class);
+    }
+
+    public function portefeuilleEpargnes()
+    {
+        return $this->hasMany(PortefeuilleEpargne::class);
+    }
+
+    /** Relation vers le portefeuille le plus récent (eager-load safe). */
+    public function latestPortefeuille()
+    {
+        return $this->hasOne(PortefeuilleEpargne::class)->ofMany([
+            'annee_reference' => 'max',
+            'mois_reference'  => 'max',
+        ]);
     }
 }

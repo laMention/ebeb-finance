@@ -5,8 +5,10 @@ use App\Models\User;
 use App\Models\InformationProfessionnelle;
 use App\Models\DeclarationRevenu;
 use App\Models\DocumentKYC;
+use Carbon\Carbon;
 use Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class InscriptionService
 {
@@ -37,6 +39,8 @@ class InscriptionService
                 'village' => mettre_en_majuscule($data['village']) ?? '',
                 'adresse_postale' => mettre_en_majuscule($data['adresse_postale']) ?? '',
                 'pays' => mettre_en_majuscule("côte d'ivoire"),
+                'remember_token' => Str::random(16),
+                'type_carte' => 'BASIC'
             ]);
 
             // Enregistrer les informations professionnelles
@@ -126,6 +130,8 @@ class InscriptionService
             $token = $user->createToken('user-token')->plainTextToken;
             $user->setRememberToken($token);
         }
+
+        $user->update(['derniere_connexion' => Carbon::now()]);
 
         // Retourner l'utilisateur et son token
         return [

@@ -33,9 +33,11 @@ class UserResource extends JsonResource
             "village" => $this->village,
             "adresse_postale" => $this->adresse_postale,
             "sexe" => $this->sexe,
-            "situation_familiale" => $this->situation_familiale,
-            "nombre_enfants" => $this->nombre_enfants,
-            "date_activation" => $this->date_activation,
+            "situation_familiale" => $this->situation_familiale ?? mettre_en_majuscule('célibataire'),
+            "nombre_enfants" => $this->nombre_enfants ?? 0,
+            "date_activation" => format_date_fr_chiffre($this->date_activation),
+            "created_at" => format_date_fr_chiffre($this->created_at),
+            "derniere_connexion" => format_date_fr_chiffre($this->derniere_connexion),
             "informationProfessionnelle" => $this->whenLoaded('informationProfessionnelle', function () {
                 return new InformationProfessionnelleResource($this->informationProfessionnelle);
             }),

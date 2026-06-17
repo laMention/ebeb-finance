@@ -111,6 +111,24 @@ Route::prefix('administration')->group(function () {
             Route::post('verifier-document',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'verificationDocument']);
             Route::post('mise-a-jour-document/{documentKYC}',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'mettreAjourDocument']);
 
+            // Validation KYC
+            Route::prefix('kyc')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'index']);
+                Route::patch('/{documentKYC}/approuver', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'approuver']);
+                Route::patch('/{documentKYC}/rejeter', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'rejeter']);
+            });
+
+            // Gestion des utilisateurs (travailleurs indépendants)
+            Route::prefix('utilisateurs')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'index']);
+                Route::get('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'show']);
+                Route::patch('/{user}/suspendre', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'suspendre']);
+                Route::patch('/{user}/reactiver', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reactiver']);
+                Route::patch('/{user}/infos-admin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'mettreAjourInfosAdmin']);
+                Route::patch('/{user}/reinitialiser-pin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reinitialiserCodePin']);
+                Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver']);
+            });
+
             // Types de cotisation
             Route::prefix('types-cotisation')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'index']);
