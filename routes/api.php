@@ -130,6 +130,12 @@ Route::prefix('administration')->group(function () {
                 Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver']);
             });
 
+            // Transactions / Opérations financières
+            Route::prefix('transactions')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'index']);
+                Route::get('/{operation}', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'show']);
+            });
+
             // Types de cotisation
             Route::prefix('types-cotisation')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'index']);
