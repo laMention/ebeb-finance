@@ -206,4 +206,21 @@ class GestionUtilisateurController extends BaseController
             return $this->throw($e);
         }
     }
+
+    /**
+     * Vue consolidée des cotisations pour une année donnée.
+     * GET /administration/panel-admin/utilisateurs/{user}/cotisations
+     */
+    public function cotisations(User $user, Request $request): JsonResponse
+    {
+        try {
+            $annee = (int) $request->input('annee', (int) date('Y'));
+            $data  = $this->adminUserService->getCotisations($user, $annee);
+
+            return $this->sendResponse($data, 'Cotisations récupérées avec succès.');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
 }

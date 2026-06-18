@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Cotisation;
+use App\Models\ObjectifEpargne;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -257,5 +259,131 @@ class AdminUserService
         }
 
         return ['success' => true, 'message' => 'Code PIN réinitialisé avec succès. L\'utilisateur a été notifié.'];
+    }
+
+    /**
+     * Retourne la vue consolidée des cotisations d'un utilisateur pour une année donnée :
+     * - statut annuel global (total versé / objectif / pourcentage)
+     * - progression par type de cotisation
+     * - objectifs d'épargne
+     * - historique mensuel des versements
+     */
+    public function getCotisations(User $user, int $annee): array
+    {
+        $cotisations = Cotisation::with('typeCotisation')
+            ->where('user_id', $user->id)
+            ->where('annee', $annee)
+            ->orderBy('mois')
+            ->get();
+
+        // — Progression par type de cotisation —
+        $parType            = $cotisations->groupBy('type_cotisation_id');
+        $progressionParType = [];
+
+        foreach ($parType as $_typeId => $groupe) {
+            $type = $groupe->first()->typeCotisation;
+            if (!$type) continue;
+
+            $verse    = (float) $groupe->sum('montant_verse');
+            $objectif = (float) $groupe->sum('montant_objectif');
+            $restant  = (float) $groupe->sum('montant_restant');
+            $pct      = $objectif > 0 ? round(($verse / $objectif) * 100, 2) : 0;
+
+            $progressionParType[] = [
+                'type_cotisation_uuid' => $type->id,
+                'libelle'              => $type->libelle,
+                'code'                 => $type->code,
+                'categorie'            => $type->categorie,
+                'est_personnalisee'    => !is_null($type->user_id),
+                'est_obligatoire'      => (bool) $type->est_obligatoire,
+                'montant_verse'        => $verse,
+                'montant_objectif'     => $objectif,
+                'montant_restant'      => $restant,
+                'pourcentage'          => $pct,
+                'statut'               => $pct >= 100 ? 'A_JOUR' : ($pct >= 50 ? 'PARTIEL' : 'EN_RETARD'),
+                'nb_versements'        => $groupe->count(),
+            ];
+        }
+
+        // — Objectifs d'épargne (tous, pas filtrés par année) —
+        $objectifs = ObjectifEpargne::where('user_id', $user->id)
+            ->get()
+            ->map(function ($obj) {
+                $pct = $obj->montant_cible > 0
+                    ? round(($obj->montant_epargne / $obj->montant_cible) * 100, 2)
+                    : 0;
+                return [
+                    'uuid'            => $obj->id,
+                    'libelle'         => $obj->libelle,
+                    'montant_cible'   => (float) $obj->montant_cible,
+                    'montant_epargne' => (float) $obj->montant_epargne,
+                    'pourcentage'     => $pct,
+                    'est_actif'       => (bool) $obj->est_actif,
+                    'date_limite'     => $obj->date_limite?->format('Y-m-d'),
+                    'type_calcul'     => $obj->type_calcul,
+                    'valeur'          => $obj->valeur !== null ? (float) $obj->valeur : null,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        // — Historique mensuel —
+        $moisLabels = [
+            1 => 'Janvier', 2 => 'Février',  3 => 'Mars',      4 => 'Avril',
+            5 => 'Mai',     6 => 'Juin',      7 => 'Juillet',   8 => 'Août',
+            9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre',
+        ];
+
+        $parMois    = $cotisations->groupBy('mois');
+        $historique = [];
+
+        for ($m = 1; $m <= 12; $m++) {
+            $groupe = $parMois->get($m);
+            if (!$groupe || $groupe->isEmpty()) continue;
+
+            $versements = $groupe->map(function ($c) {
+                $type = $c->typeCotisation;
+                $pct  = $c->montant_objectif > 0
+                    ? round(($c->montant_verse / $c->montant_objectif) * 100, 2)
+                    : 0;
+                return [
+                    'libelle'          => $type?->libelle ?? '—',
+                    'code'             => $type?->code ?? '',
+                    'est_personnalisee'=> $type ? !is_null($type->user_id) : false,
+                    'montant_verse'    => (float) $c->montant_verse,
+                    'montant_objectif' => (float) $c->montant_objectif,
+                    'montant_restant'  => (float) $c->montant_restant,
+                    'pourcentage'      => $pct,
+                    'statut'           => $c->statut,
+                    'date_paiement'    => $c->date_paiement?->format('Y-m-d'),
+                ];
+            })->values()->toArray();
+
+            $historique[] = [
+                'mois'         => $m,
+                'annee'        => $annee,
+                'mois_libelle' => $moisLabels[$m] . ' ' . $annee,
+                'total_verse'  => (float) $groupe->sum('montant_verse'),
+                'cotisations'  => $versements,
+            ];
+        }
+
+        // — Statut annuel global —
+        $totalVerse    = (float) $cotisations->sum('montant_verse');
+        $totalObjectif = (float) $cotisations->sum('montant_objectif');
+        $pctGlobal     = $totalObjectif > 0 ? round(($totalVerse / $totalObjectif) * 100, 2) : 0;
+
+        return [
+            'annee'                => $annee,
+            'statut_annuel'        => [
+                'total_verse'    => $totalVerse,
+                'total_objectif' => $totalObjectif,
+                'pourcentage'    => $pctGlobal,
+                'statut'         => $pctGlobal >= 100 ? 'A_JOUR' : ($pctGlobal >= 50 ? 'PARTIEL' : 'EN_RETARD'),
+            ],
+            'progression_par_type' => $progressionParType,
+            'objectifs_epargne'    => $objectifs,
+            'historique_mensuel'   => $historique,
+        ];
     }
 }

@@ -126,6 +126,7 @@ Route::prefix('administration')->group(function () {
                 Route::patch('/{user}/reactiver', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reactiver']);
                 Route::patch('/{user}/infos-admin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'mettreAjourInfosAdmin']);
                 Route::patch('/{user}/reinitialiser-pin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reinitialiserCodePin']);
+                Route::get('/{user}/cotisations', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'cotisations']);
                 Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver']);
             });
 
