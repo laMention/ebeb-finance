@@ -195,6 +195,14 @@ Route::prefix('administration')->group(function () {
                 Route::post('/{configurationApiOperateur}/tester-webhook',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerWebhook']);
             });
 
+            // Mobile Money (admin)
+            Route::prefix('mobile-money')->group(function () {
+                Route::get('/dashboard',                   [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'dashboard']);
+                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'index']);
+                Route::get('/{compteMobileMoney}',         [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'show']);
+                Route::patch('/{compteMobileMoney}/statut',[\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'basculerStatut']);
+            });
+
             Route::prefix('parametres-globaux')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
                 Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store']);

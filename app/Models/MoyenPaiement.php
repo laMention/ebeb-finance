@@ -19,5 +19,18 @@ class MoyenPaiement extends Model
     {
         return $this->hasMany(CompteMobileMoney::class, 'moyen_paiement_id');
     }
+
+    public function configurations_api()
+    {
+        return $this->hasMany(ConfigurationApiOperateur::class, 'moyen_paiement_id');
+    }
+
+    /** Préfère PRODUCTION si plusieurs configs actives coexistent. */
+    public function configurationApiActive()
+    {
+        return $this->hasOne(ConfigurationApiOperateur::class, 'moyen_paiement_id')
+                    ->where('est_actif', true)
+                    ->orderByRaw("CASE WHEN environnement = 'PRODUCTION' THEN 0 ELSE 1 END");
+    }
 }
 
