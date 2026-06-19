@@ -195,6 +195,24 @@ Route::prefix('administration')->group(function () {
                 Route::post('/{configurationApiOperateur}/tester-webhook',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerWebhook']);
             });
 
+            // Reversements
+            Route::prefix('reversements')->group(function () {
+                Route::get('/dashboard',                      [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'dashboard']);
+                Route::get('/calculer-disponible',            [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'calculerDisponible']);
+                Route::get('/',                               [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'index']);
+                Route::post('/',                              [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'store']);
+                Route::get('/{reversement}',                  [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'show']);
+                Route::patch('/{reversement}/annuler',        [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'annuler']);
+            });
+
+            // Répartitions & Splits
+            Route::prefix('repartitions')->group(function () {
+                Route::get('/dashboard', [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'dashboard']);
+                Route::get('/regles',    [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'regles']);
+                Route::get('/',          [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'index']);
+                Route::get('/{operation}',[\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'show']);
+            });
+
             // Mobile Money (admin)
             Route::prefix('mobile-money')->group(function () {
                 Route::get('/dashboard',                   [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'dashboard']);
