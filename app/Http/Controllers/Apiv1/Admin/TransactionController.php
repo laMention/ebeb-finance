@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
+use App\Http\Resources\OperationAdminResource;
 use App\Models\Operation;
 use App\Services\OperationService;
 use Illuminate\Http\JsonResponse;
@@ -31,11 +32,8 @@ class TransactionController extends BaseController
 
             $paginated = $this->operationService->listerOperations($params);
 
-            $items = $paginated->getCollection()
-                ->map($this->operationService->formaterOperation(...));
-
             return $this->sendResponse([
-                'operations' => $items,
+                'operations' => OperationAdminResource::collection($paginated->getCollection()),
                 'meta' => [
                     'current_page' => $paginated->currentPage(),
                     'last_page'    => $paginated->lastPage(),
@@ -54,6 +52,9 @@ class TransactionController extends BaseController
     /**
      * Détail complet d'une opération + paiement entrant lié.
      * GET /administration/panel-admin/transactions/{operation}
+     *
+     * Les relations sous_operations et operation_parent sont chargées ici
+     * et apparaissent automatiquement via whenLoaded() dans la Resource.
      */
     public function show(Operation $operation): JsonResponse
     {
@@ -61,7 +62,7 @@ class TransactionController extends BaseController
             $operation = $this->operationService->obtenirOperation($operation);
 
             return $this->sendResponse(
-                ['operation' => $this->operationService->formaterOperation($operation, detail: true)],
+                ['operation' => new OperationAdminResource($operation)],
                 'Opération récupérée avec succès.'
             );
 

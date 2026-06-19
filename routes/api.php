@@ -130,6 +130,32 @@ Route::prefix('administration')->group(function () {
                 Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver']);
             });
 
+            // Configurations & Paramétrages métier
+            Route::prefix('configurations')->group(function () {
+                Route::prefix('partenaires-financiers')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'index']);
+                    Route::post('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'store']);
+                    Route::get('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'show']);
+                    Route::put('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'update']);
+                    Route::delete('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'destroy']);
+                });
+            });
+
+            // Épargne (objectifs utilisateurs)
+            Route::prefix('epargne')->group(function () {
+                Route::get('/kpis', [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'kpis']);
+                Route::get('/',     [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'index']);
+                Route::get('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'show']);
+            });
+
+            // Cotisations sociales (stats admin)
+            Route::prefix('cotisations')->group(function () {
+                Route::get('/kpis',      [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'kpis']);
+                Route::get('/evolution', [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'evolutionMensuelle']);
+                Route::get('/par-type',  [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'parType']);
+                Route::get('/',          [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'index']);
+            });
+
             // Transactions / Opérations financières
             Route::prefix('transactions')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'index']);
@@ -155,6 +181,18 @@ Route::prefix('administration')->group(function () {
                 Route::delete('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'destroy']);
                 Route::patch('/{moyenPaiement}/statut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'basculerStatut']);
                 Route::patch('/{moyenPaiement}/par-defaut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'definirParDefaut']);
+            });
+
+            // Configurations APIs des opérateurs de paiement
+            Route::prefix('configurations-api')->group(function () {
+                Route::get('/',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'index']);
+                Route::post('/',   [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'store']);
+                Route::get('/{configurationApiOperateur}',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'show']);
+                Route::put('/{configurationApiOperateur}',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'update']);
+                Route::delete('/{configurationApiOperateur}', [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'destroy']);
+                Route::patch('/{configurationApiOperateur}/statut',           [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'basculerStatut']);
+                Route::post('/{configurationApiOperateur}/tester-connexion',  [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerConnexion']);
+                Route::post('/{configurationApiOperateur}/tester-webhook',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerWebhook']);
             });
 
             Route::prefix('parametres-globaux')->group(function () {
