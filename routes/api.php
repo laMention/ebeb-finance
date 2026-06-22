@@ -300,6 +300,23 @@ Route::prefix('administration')->group(function () {
                 Route::put('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'update']);
                 Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy']);
             });
+
+            // Système & Backups (Super Admin uniquement)
+            Route::prefix('systeme')->group(function () {
+                // Logs Laravel
+                Route::get('/logs/info',        [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsInfo']);
+                Route::get('/logs/telecharger',  [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsDownload']);
+                Route::get('/logs',              [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsIndex']);
+                Route::delete('/logs',           [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsClear']);
+
+                // Sauvegardes BDD
+                Route::get('/backups',                              [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupsIndex']);
+                Route::post('/backups',                             [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupCreate']);
+                Route::get('/backups/{filename}/telecharger',       [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDownload'])
+                    ->where('filename', '.+');
+                Route::delete('/backups/{filename}',                [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDelete'])
+                    ->where('filename', '.+');
+            });
         });
     });
 });
