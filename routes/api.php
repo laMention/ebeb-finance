@@ -301,6 +301,10 @@ Route::prefix('administration')->group(function () {
                 Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy']);
             });
 
+            // Export de données (PDF, Excel, CSV)
+            Route::get('/export/{module}', [\App\Http\Controllers\Apiv1\Admin\ExportController::class, 'export'])
+                ->where('module', '[a-z\-]+');
+
             // Système & Backups (Super Admin uniquement)
             Route::prefix('systeme')->group(function () {
                 // Logs Laravel
