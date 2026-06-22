@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Http\Requests\UpdateSeuilPrelevementRequest;
+use App\Services\AuditLogger;
 use App\Services\SeuilPrelevementService;
 use Illuminate\Http\JsonResponse;
 
@@ -31,6 +32,7 @@ class SeuilPrelevementController extends BaseController
             $resultat = $this->service->mettreAJour($request->validated(), $adminNom);
 
             if (!$resultat['success']) return $this->sendError($resultat['message'], [], 422);
+            AuditLogger::log('SEUIL.UPDATE', $admin, 'seuil_prelevements', null, null, $request->validated());
             return $this->sendResponse($resultat['data'], $resultat['message']);
         } catch (\Exception $e) { return $this->throw($e); }
     }

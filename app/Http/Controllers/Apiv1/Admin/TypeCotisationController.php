@@ -6,6 +6,7 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\StoreTypeCotisationRequest;
 use App\Http\Requests\UpdateTypeCotisationRequest;
 use App\Models\TypeCotisation;
+use App\Services\AuditLogger;
 use App\Services\TypeCotisationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -61,6 +62,8 @@ class TypeCotisationController extends BaseController
                 return $this->sendError($resultat['message'], [], 422);
             }
 
+            AuditLogger::log('TYPE_COTISATION.CREATE', $request->user(), 'types_cotisations', null, null, $request->validated());
+
             return $this->sendResponse($resultat, $resultat['message']);
 
         } catch (\Exception $e) {
@@ -71,11 +74,15 @@ class TypeCotisationController extends BaseController
     public function update(TypeCotisation $typeCotisation, UpdateTypeCotisationRequest $request): JsonResponse
     {
         try {
+            $avant    = $typeCotisation->only(['nom', 'montant', 'est_actif', 'est_obligatoire']);
             $resultat = $this->typeCotisationService->modifierTypeCotisation($typeCotisation, $request->validated());
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 422);
             }
+
+            AuditLogger::log('TYPE_COTISATION.UPDATE', $request->user(), 'types_cotisations',
+                (string) $typeCotisation->id, $avant, $request->validated());
 
             return $this->sendResponse($resultat, $resultat['message']);
 
@@ -87,11 +94,15 @@ class TypeCotisationController extends BaseController
     public function destroy(TypeCotisation $typeCotisation): JsonResponse
     {
         try {
+            $avant    = $typeCotisation->only(['nom', 'montant']);
             $resultat = $this->typeCotisationService->supprimerTypeCotisation($typeCotisation);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 422);
             }
+
+            AuditLogger::log('TYPE_COTISATION.DELETE', request()->user(), 'types_cotisations',
+                (string) $typeCotisation->id, $avant, null);
 
             return $this->sendResponse([], $resultat['message']);
 
@@ -103,11 +114,15 @@ class TypeCotisationController extends BaseController
     public function basculerStatut(TypeCotisation $typeCotisation): JsonResponse
     {
         try {
+            $avant    = ['est_actif' => $typeCotisation->est_actif];
             $resultat = $this->typeCotisationService->basculerStatut($typeCotisation);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('TYPE_COTISATION.TOGGLE', request()->user(), 'types_cotisations',
+                (string) $typeCotisation->id, $avant, ['est_actif' => !$typeCotisation->est_actif]);
 
             return $this->sendResponse($resultat, $resultat['message']);
 

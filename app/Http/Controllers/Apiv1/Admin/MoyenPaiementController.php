@@ -6,8 +6,10 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\StoreMoyenPaiementRequest;
 use App\Http\Requests\UpdateMoyenPaiementRequest;
 use App\Models\MoyenPaiement;
+use App\Services\AuditLogger;
 use App\Services\MoyenPaiementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 
 class MoyenPaiementController extends BaseController
@@ -67,6 +69,9 @@ class MoyenPaiementController extends BaseController
                 return $this->sendError($resultat['message'], [], 422);
             }
 
+            AuditLogger::log('MOYEN_PAIEMENT.CREATE', $request->user(), 'moyens_paiements', null,
+                null, Arr::except($data, ['logo']));
+
             return $this->sendResponse($resultat, $resultat['message']);
 
         } catch (\Exception $e) {
@@ -77,7 +82,8 @@ class MoyenPaiementController extends BaseController
     public function update(MoyenPaiement $moyenPaiement, UpdateMoyenPaiementRequest $request): JsonResponse
     {
         try {
-            $data = $request->validated();
+            $avant = $moyenPaiement->only(['nom', 'operateur', 'est_actif']);
+            $data  = $request->validated();
 
             if ($request->hasFile('logo')) {
                 if ($moyenPaiement->logo) {
@@ -92,6 +98,9 @@ class MoyenPaiementController extends BaseController
                 return $this->sendError($resultat['message'], [], 422);
             }
 
+            AuditLogger::log('MOYEN_PAIEMENT.UPDATE', $request->user(), 'moyens_paiements',
+                (string) $moyenPaiement->id, $avant, Arr::except($data, ['logo']));
+
             return $this->sendResponse($resultat, $resultat['message']);
 
         } catch (\Exception $e) {
@@ -102,11 +111,15 @@ class MoyenPaiementController extends BaseController
     public function destroy(MoyenPaiement $moyenPaiement): JsonResponse
     {
         try {
+            $avant    = $moyenPaiement->only(['nom', 'operateur']);
             $resultat = $this->moyenPaiementService->supprimerMoyenPaiement($moyenPaiement);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 422);
             }
+
+            AuditLogger::log('MOYEN_PAIEMENT.DELETE', request()->user(), 'moyens_paiements',
+                (string) $moyenPaiement->id, $avant, null);
 
             return $this->sendResponse([], $resultat['message']);
 
@@ -118,11 +131,15 @@ class MoyenPaiementController extends BaseController
     public function basculerStatut(MoyenPaiement $moyenPaiement): JsonResponse
     {
         try {
+            $avant    = ['est_actif' => $moyenPaiement->est_actif];
             $resultat = $this->moyenPaiementService->basculerStatut($moyenPaiement);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('MOYEN_PAIEMENT.TOGGLE', request()->user(), 'moyens_paiements',
+                (string) $moyenPaiement->id, $avant, ['est_actif' => !$moyenPaiement->est_actif]);
 
             return $this->sendResponse($resultat, $resultat['message']);
 
@@ -139,6 +156,9 @@ class MoyenPaiementController extends BaseController
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('MOYEN_PAIEMENT.SET_DEFAULT', request()->user(), 'moyens_paiements',
+                (string) $moyenPaiement->id);
 
             return $this->sendResponse($resultat, $resultat['message']);
 

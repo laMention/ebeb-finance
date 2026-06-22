@@ -6,6 +6,7 @@ use App\Http\Controllers\BaseController;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AdminUserService;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -119,6 +120,9 @@ class GestionUtilisateurController extends BaseController
                 return $this->sendError($resultat['message'], [], 400);
             }
 
+            AuditLogger::log('USER.SUSPEND', $request->user(), 'utilisateurs', $user->id,
+                ['statut' => $user->statut], ['statut' => 'SUSPENDU', 'motif' => $motif]);
+
             return $this->sendResponse(['user' => $resultat['user']], $resultat['message']);
 
         } catch (\Exception $e) {
@@ -138,6 +142,9 @@ class GestionUtilisateurController extends BaseController
             if (!$resultat['success']) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('USER.REACTIVATE', request()->user(), 'utilisateurs', $user->id,
+                ['statut' => 'SUSPENDU'], ['statut' => 'ACTIF']);
 
             return $this->sendResponse(['user' => $resultat['user']], $resultat['message']);
 
@@ -159,6 +166,9 @@ class GestionUtilisateurController extends BaseController
                 return $this->sendError($resultat['message'], [], 400);
             }
 
+            AuditLogger::log('USER.ARCHIVE', request()->user(), 'utilisateurs', $user->id,
+                ['email' => $user->email], null);
+
             return $this->sendResponse([], $resultat['message']);
 
         } catch (\Exception $e) {
@@ -173,12 +183,15 @@ class GestionUtilisateurController extends BaseController
     public function mettreAjourInfosAdmin(User $user, Request $request): JsonResponse
     {
         try {
+            $avant    = $user->only(['numero_cnps', 'numero_cmu']);
             $data     = $request->only(['numero_cnps', 'numero_cmu']);
             $resultat = $this->adminUserService->mettreAjourInfosAdmin($user, $data);
 
             if (!$resultat['success']) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('USER.UPDATE_INFO', $request->user(), 'utilisateurs', $user->id, $avant, $data);
 
             return $this->sendResponse(['user' => $resultat['user']], $resultat['message']);
 
@@ -199,6 +212,8 @@ class GestionUtilisateurController extends BaseController
             if (!$resultat['success']) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('USER.RESET_PIN', request()->user(), 'utilisateurs', $user->id);
 
             return $this->sendResponse([], $resultat['message']);
 

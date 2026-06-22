@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Reversement;
+use App\Services\AuditLogger;
 use App\Services\ReversementAdminService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,6 +76,8 @@ class ReversementAdminController extends BaseController
             ]), $admin);
 
             if (!$resultat['success']) return $this->sendError($resultat['message'], [], 422);
+            AuditLogger::log('REVERSEMENT.CREATE', $admin, 'reversements', null,
+                null, $request->only(['partenaire_id', 'periode_debut', 'periode_fin']));
             return $this->sendResponse($resultat['data'], $resultat['message'], 201);
         } catch (\Exception $e) { return $this->throw($e); }
     }
@@ -87,9 +90,12 @@ class ReversementAdminController extends BaseController
             ]);
 
             $admin    = $request->user();
+            $avant    = ['statut' => $reversement->statut];
             $resultat = $this->service->annuler($reversement, $request->only(['motif_annulation']), $admin);
 
             if (!$resultat['success']) return $this->sendError($resultat['message'], [], 422);
+            AuditLogger::log('REVERSEMENT.CANCEL', $admin, 'reversements', (string) $reversement->id,
+                $avant, $request->only(['motif_annulation']));
             return $this->sendResponse($resultat['data'], $resultat['message']);
         } catch (\Exception $e) { return $this->throw($e); }
     }

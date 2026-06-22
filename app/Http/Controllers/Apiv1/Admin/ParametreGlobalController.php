@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
-// use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreParametreGlobalRequest;
 use App\Http\Requests\UpdateParametreGlobalRequest;
 use App\Models\ParametreGlobal;
+use App\Services\AuditLogger;
 use App\Services\ParametreGlobalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,12 +56,14 @@ class ParametreGlobalController extends BaseController
     public function store(StoreParametreGlobalRequest $request): JsonResponse
     {
         try {
-            $data = $request->validated();
+            $data     = $request->validated();
             $resultat = $this->parametreGlobalService->creerParametreGlobal($data, $request->user()->id);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 422);
             }
+
+            AuditLogger::log('PARAMETRE.CREATE', $request->user(), 'parametres_globaux', null, null, $data);
 
             return $this->sendResponse($resultat, $resultat['message']);
         } catch (\Exception $e) {
@@ -73,12 +75,16 @@ class ParametreGlobalController extends BaseController
     public function update(ParametreGlobal $parametreGlobal, UpdateParametreGlobalRequest $request): JsonResponse
     {
         try {
-            $data = $request->validated();
+            $avant    = $parametreGlobal->only(['cle', 'valeur']);
+            $data     = $request->validated();
             $resultat = $this->parametreGlobalService->modifierParametreGlobal($parametreGlobal, $data, $request->user()->id);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 422);
             }
+
+            AuditLogger::log('PARAMETRE.UPDATE', $request->user(), 'parametres_globaux',
+                (string) $parametreGlobal->id, $avant, $data);
 
             return $this->sendResponse($resultat, $resultat['message']);
         } catch (\Exception $e) {
@@ -90,11 +96,15 @@ class ParametreGlobalController extends BaseController
     public function destroy(ParametreGlobal $parametreGlobal): JsonResponse
     {
         try {
+            $avant    = $parametreGlobal->only(['cle', 'valeur']);
             $resultat = $this->parametreGlobalService->supprimerParametreGlobal($parametreGlobal);
 
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 422);
             }
+
+            AuditLogger::log('PARAMETRE.DELETE', request()->user(), 'parametres_globaux',
+                (string) $parametreGlobal->id, $avant, null);
 
             return $this->sendResponse([], $resultat['message']);
         } catch (\Exception $e) {

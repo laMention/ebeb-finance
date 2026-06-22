@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Models\DocumentKYC;
+use App\Services\AuditLogger;
 use App\Services\DocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -86,6 +87,8 @@ class KycController extends BaseController
             }
 
             $documentKYC->refresh()->load('user');
+            AuditLogger::log('KYC.APPROVE', request()->user(), 'documents_kyc', $documentKYC->id,
+                ['statut' => 'EN_ATTENTE'], ['statut' => 'VALIDE']);
 
             return $this->sendResponse(
                 ['dossier' => $this->formatDossier($documentKYC)],
@@ -123,6 +126,8 @@ class KycController extends BaseController
             }
 
             $documentKYC->refresh()->load('user');
+            AuditLogger::log('KYC.REJECT', request()->user(), 'documents_kyc', $documentKYC->id,
+                ['statut' => 'EN_ATTENTE'], ['statut' => 'REJETE', 'motif' => $motif]);
 
             return $this->sendResponse(
                 ['dossier' => $this->formatDossier($documentKYC)],

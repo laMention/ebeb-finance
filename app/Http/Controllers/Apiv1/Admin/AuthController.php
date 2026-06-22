@@ -6,6 +6,7 @@ use App\Http\Controllers\BaseController;
 // use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ConnexionRequest;
 use App\Services\AdminService;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 // use Illuminate\Http\Request;
 
@@ -27,8 +28,12 @@ class AuthController extends BaseController
 
             if (!$result['success']) {
                 return $this->sendError($result['message'],[],400);
-            } 
+            }
 
+            $admin = $result['admin'] ?? null;
+            AuditLogger::log('ADMIN.CONNEXION', $admin instanceof \App\Models\Administrateur ? $admin : null,
+                'administrateurs', $admin->id ?? null, null, ['login' => $validated['email_telephone'] ?? null]);
+            
             $data = [
                 'success' => $result['success'],
                 'admin' => $result['admin'],
@@ -49,6 +54,8 @@ class AuthController extends BaseController
 
             $admin = $request->user();
 
+            AuditLogger::log('ADMIN.DECONNEXION', $admin instanceof \App\Models\Administrateur ? $admin : null,
+                'administrateurs', $admin->id ?? null);
 
             $resultat = $this->adminService->deconnexion($admin);
 

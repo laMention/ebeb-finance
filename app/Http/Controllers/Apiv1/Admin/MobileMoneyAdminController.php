@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Models\CompteMobileMoney;
+use App\Services\AuditLogger;
 use App\Services\MobileMoneyAdminService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,11 +66,15 @@ class MobileMoneyAdminController extends BaseController
     public function basculerStatut(CompteMobileMoney $compteMobileMoney): JsonResponse
     {
         try {
+            $avant    = ['statut' => $compteMobileMoney->statut];
             $resultat = $this->service->basculerStatut($compteMobileMoney);
 
             if (!$resultat['success']) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            AuditLogger::log('MOBILE_MONEY.TOGGLE', request()->user(), 'comptes_mobile_money',
+                (string) $compteMobileMoney->id, $avant, null);
 
             return $this->sendResponse($resultat, $resultat['message']);
         } catch (\Exception $e) {

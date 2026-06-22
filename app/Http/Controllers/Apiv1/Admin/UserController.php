@@ -7,6 +7,7 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\AjoutDocumentKYCRequest;
 use App\Http\Requests\ModifierDocumentKYCRequest;
 use App\Models\DocumentKYC;
+use App\Services\AuditLogger;
 use App\Services\DocumentService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -202,6 +203,10 @@ class UserController extends BaseController
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 400);
             }
+
+            // AuditLogger::log('REMOVE.DOCUMENTKYC', request()->user(), 'document_k_y_cs',
+            //     (string) $documentKYC->id, $avant, ['est_actif' => !$documentKYC->est_actif]);
+
             return $this->sendResponse([], $resultat['message']);
         } catch (\Exception $e) {
             return $this->throw($e);

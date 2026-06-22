@@ -227,6 +227,58 @@ Route::prefix('administration')->group(function () {
                 Route::patch('/{compteMobileMoney}/statut',[\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'basculerStatut']);
             });
 
+            // Gestion des administrateurs (CRUD)
+            Route::prefix('gestion-admins')->group(function () {
+                Route::get('/dashboard',                          [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'dashboard']);
+                Route::get('/',                                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'index']);
+                Route::post('/',                                  [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'store']);
+                Route::get('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'show']);
+                Route::put('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'update']);
+                Route::patch('/{admin}/statut',                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'changerStatut']);
+                Route::delete('/{admin}',                         [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'archive']);
+                Route::patch('/{adminId}/restaurer',              [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'restore']);
+            });
+
+            // Rôles & Permissions (RBAC)
+            Route::prefix('roles')->group(function () {
+                Route::get('/all',                         [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'all']);
+                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'index']);
+                Route::post('/',                           [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'store']);
+                Route::get('/{role}',                      [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'show']);
+                Route::put('/{role}',                      [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'update']);
+                Route::patch('/{role}/archiver',           [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'archive']);
+                Route::patch('/{role}/restaurer',          [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'restore']);
+                Route::put('/{role}/sync-permissions',     [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'syncPermissions']);
+            });
+
+            Route::prefix('permissions')->group(function () {
+                Route::get('/par-module',                  [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'parModule']);
+                Route::get('/modules',                     [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'modules']);
+                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'index']);
+                Route::post('/',                           [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'store']);
+                Route::put('/{permission}',                [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'update']);
+            });
+
+            Route::prefix('admins-rbac')->group(function () {
+                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'index']);
+                Route::get('/{admin}',                     [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'show']);
+                Route::patch('/{admin}/assigner-role',     [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'assignerRole']);
+                Route::patch('/{admin}/retirer-role',      [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'retirerRole']);
+                Route::patch('/{admin}/assigner-permissions', [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'assignerPermissions']);
+                Route::patch('/{admin}/retirer-permissions',  [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'retirerPermissions']);
+            });
+
+            // Logs & Audit
+            Route::prefix('logs-audit')->group(function () {
+                Route::get('/modules',          [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'modules']);
+                Route::get('/actions',          [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'actions']);
+                Route::get('/export',           [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'export']);
+                Route::get('/',                 [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'index']);
+                Route::get('/{logAudit}',       [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'show']);
+                Route::delete('/{logAudit}',    [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'archive']);
+                Route::patch('/{logId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'restore']);
+            });
+
             Route::prefix('parametres-globaux')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
                 Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store']);

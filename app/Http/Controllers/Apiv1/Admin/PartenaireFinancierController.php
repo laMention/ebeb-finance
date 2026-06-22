@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 use App\Http\Controllers\BaseController;
 use App\Http\Resources\PartenaireFinancierResource;
 use App\Models\PartenairesFinancier;
+use App\Services\AuditLogger;
 use App\Services\PartenaireFinancierService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,6 +48,8 @@ class PartenaireFinancierController extends BaseController
             ]);
 
             $partenaire = $this->service->creer($validated);
+            AuditLogger::log('PARTENAIRE.CREATE', $request->user(), 'partenaires_financiers',
+                (string) $partenaire->id, null, $validated);
 
             return $this->sendResponse(
                 ['partenaire' => new PartenaireFinancierResource($partenaire)],
@@ -90,7 +93,10 @@ class PartenaireFinancierController extends BaseController
                 'type' => 'sometimes|required|string|max:100',
             ]);
 
+            $avant      = $partenaireFinancier->only(['nom', 'code', 'type']);
             $partenaire = $this->service->modifier($partenaireFinancier, $validated);
+            AuditLogger::log('PARTENAIRE.UPDATE', $request->user(), 'partenaires_financiers',
+                (string) $partenaireFinancier->id, $avant, $validated);
 
             return $this->sendResponse(
                 ['partenaire' => new PartenaireFinancierResource($partenaire)],
@@ -110,7 +116,10 @@ class PartenaireFinancierController extends BaseController
     public function destroy(PartenairesFinancier $partenaireFinancier): JsonResponse
     {
         try {
+            $avant = $partenaireFinancier->only(['nom', 'code', 'type']);
             $this->service->supprimer($partenaireFinancier);
+            AuditLogger::log('PARTENAIRE.DELETE', request()->user(), 'partenaires_financiers',
+                (string) $partenaireFinancier->id, $avant, null);
 
             return $this->sendResponse([], 'Partenaire financier supprimé avec succès.');
 
