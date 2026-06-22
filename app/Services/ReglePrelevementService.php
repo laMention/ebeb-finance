@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ReglePrelevement;
 use App\Models\TypeCotisation;
 use App\Models\User;
+use App\Services\SeuilPrelevementService;
 use DB;
 
 class ReglePrelevementService
@@ -138,6 +139,30 @@ class ReglePrelevementService
                     'success' => false,
                     'message' => $validationValeur['message'],
                 ];
+            }
+
+            // Vérifier les seuils globaux de prélèvement
+            $estActif = $data['est_actif'] ?? true;
+            if ($estActif) {
+                // Calculer les totaux actuels de l'utilisateur (en excluant la règle du même type si elle existe)
+                $totalPct = ReglePrelevement::where('user_id', $userId)
+                    ->where('type_calcul', 'POURCENTAGE')
+                    ->where('est_actif', true)
+                    ->where('type_cotisation_id', '!=', $data['type_cotisation_id'])
+                    ->sum('valeur');
+                $totalMontant = ReglePrelevement::where('user_id', $userId)
+                    ->where('type_calcul', 'FIXE')
+                    ->where('est_actif', true)
+                    ->where('type_cotisation_id', '!=', $data['type_cotisation_id'])
+                    ->sum('valeur');
+
+                $nouvellePct     = $typeCalcul === 'POURCENTAGE' ? $totalPct + $valeur : $totalPct;
+                $nouveauMontant  = $typeCalcul === 'FIXE'        ? $totalMontant + $valeur : $totalMontant;
+
+                $verif = SeuilPrelevementService::verifierSeuils($nouvellePct, $nouveauMontant);
+                if (!$verif['valid']) {
+                    return ['success' => false, 'message' => $verif['message']];
+                }
             }
 
             // Chercher une règle existante pour ce type
@@ -525,6 +550,21 @@ class ReglePrelevementService
                     'success' => false,
                     'message' => "La somme des pourcentages actifs ($sommePourcentages %) ne peut pas dépasser 100 %",
                 ];
+            }
+
+            // Calculer la somme des montants actifs
+            $sommeMontants = 0;
+            foreach ($reglesValidees as $r) {
+                if ($r['type_calcul'] === 'FIXE' && $r['est_actif']) {
+                    $sommeMontants += $r['valeur'];
+                }
+            }
+
+            // Vérifier les seuils globaux admin
+            $verif = SeuilPrelevementService::verifierSeuils($sommePourcentages, $sommeMontants);
+            if (!$verif['valid']) {
+                DB::rollBack();
+                return ['success' => false, 'message' => $verif['message']];
             }
 
             // Supprimer les règles actuelles de l'utilisateur

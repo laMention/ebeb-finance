@@ -195,6 +195,12 @@ Route::prefix('administration')->group(function () {
                 Route::post('/{configurationApiOperateur}/tester-webhook',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerWebhook']);
             });
 
+            // Seuils de prélèvement
+            Route::prefix('seuil-prelevements')->group(function () {
+                Route::get('/',  [\App\Http\Controllers\Apiv1\Admin\SeuilPrelevementController::class, 'show']);
+                Route::put('/',  [\App\Http\Controllers\Apiv1\Admin\SeuilPrelevementController::class, 'update']);
+            });
+
             // Reversements
             Route::prefix('reversements')->group(function () {
                 Route::get('/dashboard',                      [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'dashboard']);
