@@ -279,6 +279,17 @@ Route::prefix('administration')->group(function () {
                 Route::patch('/{logId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'restore']);
             });
 
+            // Alertes système
+            Route::prefix('alertes')->group(function () {
+                Route::get('/compteurs',              [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'compteurs']);
+                Route::get('/',                       [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'index']);
+                Route::get('/{alerte}',               [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'show']);
+                Route::patch('/{alerteId}/lire',      [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'marquerLu']);
+                Route::post('/lire-tout',             [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'marquerTousLus']);
+                Route::delete('/{alerte}',            [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'archive']);
+                Route::patch('/{alerteId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'restore']);
+            });
+
             Route::prefix('parametres-globaux')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
                 Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store']);

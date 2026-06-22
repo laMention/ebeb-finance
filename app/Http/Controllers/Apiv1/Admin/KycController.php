@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Models\DocumentKYC;
+use App\Services\AlerteGenerator;
 use App\Services\AuditLogger;
 use App\Services\DocumentService;
 use Illuminate\Http\JsonResponse;
@@ -90,6 +91,13 @@ class KycController extends BaseController
             AuditLogger::log('KYC.APPROVE', request()->user(), 'documents_kyc', $documentKYC->id,
                 ['statut' => 'EN_ATTENTE'], ['statut' => 'VALIDE']);
 
+            $user = $documentKYC->user;
+            AlerteGenerator::kyc('SUCCES',
+                'Dossier KYC validé',
+                "Le dossier de {$user?->prenom} {$user?->nom} a été approuvé.",
+                "/kyc/{$documentKYC->id}"
+            );
+
             return $this->sendResponse(
                 ['dossier' => $this->formatDossier($documentKYC)],
                 $resultat['message']
@@ -128,6 +136,13 @@ class KycController extends BaseController
             $documentKYC->refresh()->load('user');
             AuditLogger::log('KYC.REJECT', request()->user(), 'documents_kyc', $documentKYC->id,
                 ['statut' => 'EN_ATTENTE'], ['statut' => 'REJETE', 'motif' => $motif]);
+
+            $user = $documentKYC->user;
+            AlerteGenerator::kyc('AVERTISSEMENT',
+                'Dossier KYC rejeté',
+                "Le dossier de {$user?->prenom} {$user?->nom} a été rejeté. Motif : {$motif}",
+                "/kyc/{$documentKYC->id}"
+            );
 
             return $this->sendResponse(
                 ['dossier' => $this->formatDossier($documentKYC)],

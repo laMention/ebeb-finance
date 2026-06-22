@@ -11,6 +11,7 @@ use App\Models\QrcodePaiement;
 use App\Models\ReglePrelevement;
 use App\Models\TypeCotisation;
 use App\Models\User;
+use App\Services\AlerteGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -324,9 +325,19 @@ class PaiementService
 
                 // Objectif d'épargne atteint ?
                 $totalEpargne = (float) $objectif->montant_epargne + $repartition['epargne'];
-                if ($totalEpargne >= (float) $objectif->montant_cible) {
+                $objectifAtteint = $totalEpargne >= (float) $objectif->montant_cible;
+                if ($objectifAtteint) {
                     $this->notificationService->notifierObjectifEpargneAtteint($user, $objectif->libelle);
                 }
+
+                AlerteGenerator::transaction(
+                    $objectifAtteint ? 'SUCCES' : 'INFO',
+                    $objectifAtteint
+                        ? "Objectif d'épargne atteint — {$objectif->libelle}"
+                        : "Prélèvement épargne automatique — {$objectif->libelle}",
+                    "{$user->prenom} {$user->nom} : " . number_format($repartition['epargne'], 0, ',', ' ') . " FCFA prélevé(s) pour l'épargne « {$objectif->libelle} »."
+                        . ($objectifAtteint ? " Objectif de " . number_format((float) $objectif->montant_cible, 0, ',', ' ') . " FCFA atteint." : ''),
+                );
             }
 
             // 3. Cotisations et assurances
@@ -337,6 +348,12 @@ class PaiementService
                 str_contains($categorie, 'ASSURANCE')
                     ? $this->notificationService->notifierDeductionAssurance($user, $cot['montant'], $type->libelle)
                     : $this->notificationService->notifierDeductionCotisation($user, $cot['montant'], $type->libelle);
+
+                AlerteGenerator::transaction(
+                    'INFO',
+                    "Prélèvement cotisation — {$type->libelle}",
+                    "{$user->prenom} {$user->nom} : " . number_format($cot['montant'], 0, ',', ' ') . " FCFA prélevé(s) pour la cotisation « {$type->libelle} ».",
+                );
             }
 
             // 4. Commission

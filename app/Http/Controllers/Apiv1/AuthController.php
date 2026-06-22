@@ -9,6 +9,7 @@ use App\Http\Requests\RenvoyerCodeOtpRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\VerificationOtpRequest;
 use App\Models\User;
+use App\Services\AlerteGenerator;
 use App\Services\InscriptionService;
 use App\Services\OtpService;
 // use Illuminate\Http\Request;
@@ -50,9 +51,15 @@ class AuthController extends BaseController
                 $data = [
                     'user' => $user,
                     'otp' => $otp
-                ]; 
+                ];
+
+                AlerteGenerator::utilisateur('SUCCES',
+                    'Nouvel utilisateur inscrit',
+                    "Un nouveau compte a été créé : {$user->prenom} {$user->nom} ({$user->telephone}).",
+                    "/users/{$user->id}"
+                );
             }
-                
+
             return $this->sendResponse($data,'Inscription réussie. Utilisez le code OTP qui vous a été envoyé pour vérifier si votre numéro de téléphone est valide');
             
 

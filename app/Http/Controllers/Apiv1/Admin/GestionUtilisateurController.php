@@ -6,6 +6,7 @@ use App\Http\Controllers\BaseController;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AdminUserService;
+use App\Services\AlerteGenerator;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -122,6 +123,11 @@ class GestionUtilisateurController extends BaseController
 
             AuditLogger::log('USER.SUSPEND', $request->user(), 'utilisateurs', $user->id,
                 ['statut' => $user->statut], ['statut' => 'SUSPENDU', 'motif' => $motif]);
+            AlerteGenerator::utilisateur('AVERTISSEMENT',
+                'Compte utilisateur suspendu',
+                "Le compte de {$user->prenom} {$user->nom} ({$user->telephone}) a été suspendu." . ($motif ? " Motif : {$motif}" : ''),
+                "/users/{$user->id}"
+            );
 
             return $this->sendResponse(['user' => $resultat['user']], $resultat['message']);
 
@@ -168,6 +174,11 @@ class GestionUtilisateurController extends BaseController
 
             AuditLogger::log('USER.ARCHIVE', request()->user(), 'utilisateurs', $user->id,
                 ['email' => $user->email], null);
+            AlerteGenerator::utilisateur('CRITIQUE',
+                'Compte utilisateur archivé',
+                "Le compte de {$user->prenom} {$user->nom} ({$user->email}) a été archivé.",
+                "/users/{$user->id}"
+            );
 
             return $this->sendResponse([], $resultat['message']);
 
