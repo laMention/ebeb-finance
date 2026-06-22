@@ -294,11 +294,25 @@ Route::prefix('administration')->group(function () {
             });
 
             Route::prefix('parametres-globaux')->group(function () {
+                Route::get('/config',  [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'config']);
+                Route::put('/config',  [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'saveConfig']);
                 Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
                 Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store']);
                 Route::get('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'show']);
                 Route::put('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'update']);
                 Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy']);
+            });
+
+            // Gestion des notifications (canaux + historique)
+            Route::prefix('notification-config')->group(function () {
+                Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'index']);
+                Route::get('/logs',                      [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'logs']);
+                Route::get('/logs/compteurs',            [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'logsCompteurs']);
+                Route::post('/logs/{id}/reessayer',      [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'reessayer']);
+                Route::get('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'show']);
+                Route::put('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'update']);
+                Route::patch('/{canal}/statut',          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'basculerStatut']);
+                Route::post('/{canal}/tester',           [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'testerEnvoi']);
             });
 
             // Export de données (PDF, Excel, CSV)

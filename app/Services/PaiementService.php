@@ -6,7 +6,6 @@ use App\Models\CompteMobileMoney;
 use App\Models\ObjectifEpargne;
 use App\Models\Operation;
 use App\Models\PaiementEntrant;
-use App\Models\ParametreGlobal;
 use App\Models\QrcodePaiement;
 use App\Models\ReglePrelevement;
 use App\Models\TypeCotisation;
@@ -155,7 +154,7 @@ class PaiementService
                 ->orderBy('ordre_priorite')
                 ->get(),
             'declaration_revenu'  => $user->declarationRevenu,
-            'taux_commission'     => (float) (ParametreGlobal::where('cle', 'TAUX_COMMISSION')->value('valeur') ?? 2.5),
+            'taux_commission'     => (float) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
         ];
     }
 
