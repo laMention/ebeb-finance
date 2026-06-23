@@ -223,6 +223,12 @@ class AdminGestionService
                 return ['success' => false, 'message' => 'Le statut du super-admin ne peut pas être modifié.'];
             }
             $admin->update(['statut_compte' => $statut]);
+
+            // Révoquer tous les tokens Sanctum lors de la désactivation
+            if ($statut === 'INACTIF') {
+                $admin->tokens()->delete();
+            }
+
             $admin->load(['roles']);
             $libelle = $statut === 'ACTIF' ? 'activé' : 'désactivé';
             return [

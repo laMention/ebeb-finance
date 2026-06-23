@@ -6,19 +6,18 @@ use Illuminate\Support\Facades\Route;
 
 //============================================ API FRONT =========================================
 
-Route::prefix('auth')->group(function () {
+Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
     Route::post('inscription',[\App\Http\Controllers\Apiv1\AuthController::class,'inscription']);
     Route::post('configurer-code-pin',[\App\Http\Controllers\Apiv1\AuthController::class,'definirCodePIN']);
     Route::post('se-connecter',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
     Route::post('valider-connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
 
     Route::post('connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
-    
-    
+
     // Routes OTP
     Route::prefix('otp')->group(function () {
         Route::post('verifier', [\App\Http\Controllers\Apiv1\AuthController::class, 'verificationOtp']);
-        Route::post('renvoyer', [\App\Http\Controllers\Apiv1\AuthController::class, 'renvoyerCodeOtp']);
+        Route::post('renvoyer', [\App\Http\Controllers\Apiv1\AuthController::class, 'renvoyerCodeOtp'])->middleware('throttle:3,1');
         Route::post('confirmerConnexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
     });
 });
@@ -101,8 +100,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //============================================ API PANEL ADMINISTRATION =========================================
 Route::prefix('administration')->group(function () {
-    Route::prefix('auth')->group(function () {
-        Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);        
+    Route::prefix('auth')->middleware('throttle:5,1')->group(function () {
+        Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);
     });
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('panel-admin')->group(function () {
@@ -415,6 +414,21 @@ Route::prefix('administration')->group(function () {
             // Export de données (PDF, Excel, CSV)
             Route::get('/export/{module}', [\App\Http\Controllers\Apiv1\Admin\ExportController::class, 'export'])
                 ->where('module', '[a-z\-]+');
+
+            // Audit de sécurité
+            Route::prefix('audit-securite')->middleware('admin.perm:systeme.view')->group(function () {
+                Route::get('/dashboard',                                    [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'dashboard']);
+                Route::get('/statut',                                       [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'statut']);
+                Route::get('/vulnerabilites',                               [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'vulnerabilites']);
+                Route::get('/historique',                                   [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'historique']);
+                Route::patch('/vulnerabilites/{vulnerabilite}/corrige',     [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'marquerCorrige']);
+                Route::patch('/vulnerabilites/{vulnerabilite}/statut',      [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'changerStatut']);
+                Route::get('/export/pdf',                                   [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'exportPdf']);
+                Route::get('/export/excel',                                 [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'exportExcel']);
+                // Actions (Super Admin uniquement)
+                Route::post('/lancer',                                      [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'lancer']);
+                Route::post('/corrections/appliquer',                       [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'appliquerCorrections']);
+            });
 
             // Système & Backups (Super Admin uniquement)
             Route::prefix('systeme')->middleware('admin.perm:systeme.view')->group(function () {

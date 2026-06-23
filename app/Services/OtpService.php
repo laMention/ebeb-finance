@@ -49,13 +49,11 @@ class OtpService
         // Envoyer l'email avec le code OTP
         if(isset($user->email) && !empty($user->email)) {
             try {
-                
+
                 Mail::to($user->email)->send(new OtpMail($code));
                 return [
-                    'code_otp' => $code,
                     'success' => true,
                     'message' => 'Un code OTP a été envoyé à votre adresse e-mail.',
-                    // 'status_envoi' => $statutEnvoi
                 ];
             } catch (\Exception $e) {
                 // Supprimer l'OTP si l'email n'a pas pu être envoyé
@@ -120,8 +118,8 @@ class OtpService
         // Nettoyer le code entré (supprimer les espaces)
         $code = str_replace(' ', '', $code);
 
-        // Vérifier le code
-        if ($otp->code_otp !== $code) {
+        // Vérifier le code (comparaison à temps constant pour éviter les attaques temporelles)
+        if (!hash_equals((string) $otp->code_otp, (string) $code)) {
             // Incrémenter les tentatives
             SessionOtp::where('user_id', $user->id)
                 ->increment('tentatives');
@@ -203,19 +201,4 @@ class OtpService
         return str_pad(random_int(0, 999999), self::OTP_LENGTH, '0', STR_PAD_LEFT);
     }
 
-    /**
-     * Obtient les informations d'un OTP (pour debug uniquement)
-     *
-     * @param string $telephone
-     * @return array|null
-     */
-    public function getOtpInfo(string $telephone): ?array
-    {
-        $user = User::where('telephone', $telephone)->first();
-
-        $otp = SessionOtp::where('user_id', $user->id)
-            ->first();
-
-        return $otp ? (array) $otp : null;
-    }
 }

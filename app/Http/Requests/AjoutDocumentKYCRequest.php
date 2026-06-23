@@ -28,9 +28,9 @@ class AjoutDocumentKYCRequest extends FormRequest
             'numero_document'=> ['required',  'string'],
             'document_etablie_le'=> ['required', 'date'],
             'document_expire_le'=> [ 'required', 'date'],
-            'url_recto' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_verso' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_selfie' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+            'url_recto' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'url_verso' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'url_selfie' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             // 'url_selfie'=> ['nullable', 'file','image','mimes:jpeg,png,jpg,gif,svg|max:2048'],
         ];
     }

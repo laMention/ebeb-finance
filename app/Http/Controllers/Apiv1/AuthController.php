@@ -50,7 +50,7 @@ class AuthController extends BaseController
 
                 $data = [
                     'user' => $user,
-                    'otp' => $otp
+                    'otp_envoi' => ['success' => $otp['success'], 'message' => $otp['message']],
                 ];
 
                 AlerteGenerator::utilisateur('SUCCES',
@@ -148,16 +148,19 @@ class AuthController extends BaseController
             }
             // envoyer OTP
             $otp = $this->otpService->generateAndSend($user);
-            
+
+            if (!$otp['success']) {
+                return $this->sendError($otp['message'], [], 500);
+            }
+
             $data = [
-                'user' => $user,
-                'otp' => $otp
+                'otp_envoi' => ['success' => $otp['success'], 'message' => $otp['message']],
             ];
 
-            return $this->sendResponse($data,'Utilisez le code OTP qui vous a été envoyé pour vous connecter'); 
+            return $this->sendResponse($data, 'Utilisez le code OTP qui vous a été envoyé pour vous connecter');
 
         } catch (\Throwable $th) {
-            //throw $th;
+            return $this->throw($th);
         }
     }
 
