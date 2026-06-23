@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Administrateur;
+use App\Services\EmailBrandingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -22,8 +23,10 @@ class AdminCreationMail extends Mailable
 
     public function envelope(): Envelope
     {
+        $nom = EmailBrandingService::get()['nom_plateforme'];
+
         return new Envelope(
-            subject: 'Vos accès au panneau d\'administration — ' . config('app.name'),
+            subject: "Vos accès au panneau d'administration — {$nom}",
         );
     }
 

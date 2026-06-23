@@ -21,12 +21,19 @@ class ParametreGeneralService
     /** Retourne les paramètres généraux (avec cache). Crée l'enregistrement s'il n'existe pas. */
     public static function getInstance(): ParametreGeneral
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
-            return ParametreGeneral::firstOrCreate(
+        $cached = Cache::get(self::CACHE_KEY);
+
+        // Si le cache contient un objet invalide (classe incomplète, mauvais type, etc.)
+        if (! $cached instanceof ParametreGeneral) {
+            $cached = ParametreGeneral::firstOrCreate(
                 ['id' => 1],
                 ['nom_plateforme' => 'Ebeb Finance']
             );
-        });
+
+            Cache::put(self::CACHE_KEY, $cached, self::CACHE_TTL);
+        }
+
+        return $cached;
     }
 
     /** Retourne la valeur d'un champ texte (utile dans les vues/mails). */
