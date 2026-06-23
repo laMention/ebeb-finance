@@ -238,6 +238,7 @@ Route::prefix('administration')->group(function () {
                 Route::get('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'show']);
                 Route::put('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'update']);
                 Route::patch('/{admin}/statut',                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'changerStatut']);
+                Route::post('/{admin}/renvoyer-invitation',       [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'renvoyerInvitation']);
                 Route::delete('/{admin}',                         [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'archive']);
                 Route::patch('/{adminId}/restaurer',              [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'restore']);
             });
@@ -321,6 +322,22 @@ Route::prefix('administration')->group(function () {
                 Route::put('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'update']);
                 Route::patch('/{canal}/statut',          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'basculerStatut']);
                 Route::post('/{canal}/tester',           [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'testerEnvoi']);
+            });
+
+            // Tableau de bord
+            Route::get('/dashboard', [\App\Http\Controllers\Apiv1\Admin\DashboardController::class, 'index']);
+
+            // Gestion des pages personnalisées (CMS)
+            Route::prefix('pages')->group(function () {
+                Route::get('/types',                [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'types']);
+                Route::get('/',                     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'index']);
+                Route::post('/',                    [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'store']);
+                Route::get('/{id}',                 [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'show']);
+                Route::put('/{id}',                 [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'update']);
+                Route::delete('/{id}',              [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'destroy']);
+                Route::patch('/{id}/publier',       [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'publier']);
+                Route::patch('/{id}/depublier',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'depublier']);
+                Route::patch('/{id}/restaurer',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'restaurer']);
             });
 
             // Export de données (PDF, Excel, CSV)

@@ -50,9 +50,33 @@ class AdminGestionController extends BaseController
         try {
             $result = $this->service->creer($request->validated());
             if (!$result['success']) return $this->sendError($result['message'], [], 422);
-            AuditLogger::log('ADMIN.CREATE', $request->user(), 'administrateurs', $result['data']->id ?? null,
-                null, $request->safe()->except('password'));
-            return $this->sendResponse($result['data'], $result['message'], 201);
+            AuditLogger::log(
+                'ADMIN.CREATE',
+                $request->user(),
+                'administrateurs',
+                $result['data']->id ?? null,
+                null,
+                array_merge(
+                    $request->safe()->except('password'),
+                    ['email_invitation_envoye' => $result['email_envoye'] ?? false],
+                ),
+            );
+            return $this->sendResponse(
+                ['admin' => $result['data'], 'email_envoye' => $result['email_envoye'] ?? false],
+                $result['message'],
+                201,
+            );
+        } catch (\Exception $e) { return $this->throw($e); }
+    }
+
+    public function renvoyerInvitation(Request $request, Administrateur $admin): JsonResponse
+    {
+        try {
+            $result = $this->service->renvoyerInvitation($admin);
+            if (!$result['success']) return $this->sendError($result['message'], [], 422);
+            AuditLogger::log('ADMIN.RESEND_INVITATION', $request->user(), 'administrateurs', $admin->id,
+                null, ['email' => $admin->email]);
+            return $this->sendResponse(null, $result['message']);
         } catch (\Exception $e) { return $this->throw($e); }
     }
 

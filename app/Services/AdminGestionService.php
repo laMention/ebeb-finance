@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Http\Resources\AdminGestionResource;
 use App\Models\Administrateur;
 use App\Models\Role;
-use Illuminate\Support\Facades\Hash;
 
 class AdminGestionService
 {
@@ -109,11 +108,14 @@ class AdminGestionService
                 }
             }
 
+            // Conserver le mot de passe en clair pour l'email avant que le cast le hache
+            $plainPassword = $data['password'];
+
             $admin = Administrateur::create([
                 'nom'           => $data['nom'],
                 'prenom'        => $data['prenom'] ?? null,
                 'email'         => $data['email'],
-                'password'      => $data['password'],
+                'password'      => $plainPassword,
                 'telephone'     => $data['telephone'] ?? null,
                 'ville'         => $data['ville'] ?? null,
                 'adresse'       => $data['adresse'] ?? null,
@@ -129,10 +131,38 @@ class AdminGestionService
 
             $admin->load(['roles']);
 
+            // Envoyer l'email d'invitation avec les informations de connexion
+            $emailResult = app(AdminNotificationService::class)->envoyerInvitation($admin, $plainPassword);
+
+            return [
+                'success'       => true,
+                'message'       => "Administrateur {$admin->prenom} {$admin->nom} créé avec succès.",
+                'data'          => new AdminGestionResource($admin),
+                'email_envoye'  => $emailResult['envoye'],
+                'email_raison'  => $emailResult['raison'] ?? ($emailResult['erreur'] ?? null),
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    public function renvoyerInvitation(Administrateur $admin): array
+    {
+        try {
+            $admin->load(['roles']);
+
+            $result = app(AdminNotificationService::class)->renvoyerInvitation($admin);
+
+            if (!$result['envoye']) {
+                return [
+                    'success' => false,
+                    'message' => $result['raison'] ?? ($result['erreur'] ?? "Échec de l'envoi de l'invitation."),
+                ];
+            }
+
             return [
                 'success' => true,
-                'message' => "Administrateur {$admin->prenom} {$admin->nom} créé avec succès.",
-                'data'    => new AdminGestionResource($admin),
+                'message' => "Email d'invitation renvoyé à {$admin->email} avec un nouveau mot de passe temporaire.",
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
