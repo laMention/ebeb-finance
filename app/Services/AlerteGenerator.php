@@ -33,6 +33,14 @@ class AlerteGenerator
 
     public static function creer(string $typeAlerte, string $niveau, string $titre, string $description, ?string $lien = null): void
     {
+        // Les alertes critiques temps réel sont conditionnées par le paramètre global
+        $niveauxCritiques = ['CRITICAL', 'ALERT', 'EMERGENCY'];
+        if (in_array(strtoupper($niveau), $niveauxCritiques, true)
+            && !ParametreGlobalService::estActif('ALERTE_CRITIQUE_TEMPS_REEL')
+        ) {
+            return;
+        }
+
         try {
             Alerte::create([
                 'type_alerte'               => strtoupper($typeAlerte),

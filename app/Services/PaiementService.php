@@ -37,10 +37,20 @@ class PaiementService
                 return [
                     'success'    => false,
                     'message'    => 'Une transaction ayant cette référence existe déjà.'
-                ];                
+                ];
             }
 
             [$user, $compteMobileMoney, $operateurSource] = $this->identifierUtilisateur($data);
+
+            // Vérifier que le service opérateur est activé dans les paramètres globaux
+            $serviceKey = $this->resoudreServiceOperateur($operateurSource ?? '');
+            if ($serviceKey && !ParametreGlobalService::estActif($serviceKey)) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'message' => "Le service {$operateurSource} est temporairement désactivé.",
+                ];
+            }
 
 
             $paiement = PaiementEntrant::create([
@@ -285,6 +295,20 @@ class PaiementService
                 'libelle'             => 'Commission',
             ]);
         }
+    }
+
+    private function resoudreServiceOperateur(string $operateur): ?string
+    {
+        $map = [
+            'WAVE'         => 'SERVICE_WAVE',
+            'ORANGE_MONEY' => 'SERVICE_ORANGE_MONEY',
+            'ORANGE'       => 'SERVICE_ORANGE_MONEY',
+            'MTN'          => 'SERVICE_MTN',
+            'MTN_MONEY'    => 'SERVICE_MTN',
+            'MOOV'         => 'SERVICE_MOOV',
+            'MOOV_MONEY'   => 'SERVICE_MOOV',
+        ];
+        return $map[strtoupper($operateur)] ?? null;
     }
 
     private function resoudreTypeOperation(TypeCotisation $type): string

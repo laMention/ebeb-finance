@@ -4,6 +4,10 @@ namespace App\Services;
 
 use App\Http\Resources\AlerteResource;
 use App\Models\Alerte;
+use App\Models\DocumentKYC;
+use App\Models\PaiementEntrant;
+use App\Models\Reversement;
+use App\Models\User;
 
 class AlerteService
 {
@@ -15,11 +19,19 @@ class AlerteService
                 'success' => true,
                 'message' => 'Compteurs des alertes',
                 'data'    => [
-                    'total_non_lus'      => (clone $nonLus)->count(),
-                    'critique_non_lus'   => (clone $nonLus)->where('niveau', 'CRITIQUE')->count(),
+                    // Alertes système par niveau
+                    'total_non_lus'         => (clone $nonLus)->count(),
+                    'critique_non_lus'      => (clone $nonLus)->where('niveau', 'CRITIQUE')->count(),
                     'avertissement_non_lus' => (clone $nonLus)->where('niveau', 'AVERTISSEMENT')->count(),
-                    'info_non_lus'       => (clone $nonLus)->where('niveau', 'INFO')->count(),
-                    'succes_non_lus'     => (clone $nonLus)->where('niveau', 'SUCCES')->count(),
+                    'info_non_lus'          => (clone $nonLus)->where('niveau', 'INFO')->count(),
+                    'succes_non_lus'        => (clone $nonLus)->where('niveau', 'SUCCES')->count(),
+                    // Métriques métier
+                    'kyc_en_attente'            => DocumentKYC::where('statut', 'EN_ATTENTE')->count(),
+                    'reversements_echec'        => Reversement::where('statut', Reversement::STATUT_ECHEC)->count(),
+                    'paiements_echec_recents'   => PaiementEntrant::where('statut', 'ECHEC')
+                                                    ->where('created_at', '>=', now()->subDays(7))
+                                                    ->count(),
+                    'utilisateurs_a_valider'    => User::where('statut', 'EN_ATTENTE')->count(),
                 ],
             ];
         } catch (\Exception $e) {

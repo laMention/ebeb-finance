@@ -303,6 +303,14 @@ Route::prefix('administration')->group(function () {
                 Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy']);
             });
 
+            // Paramètres généraux de la plateforme (singleton)
+            Route::prefix('parametre-general')->group(function () {
+                Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'show']);
+                Route::post('/',                         [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'save']);
+                Route::delete('/fichier/{champ}',        [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'supprimerFichier'])
+                    ->where('champ', '[a-z_]+');
+            });
+
             // Gestion des notifications (canaux + historique)
             Route::prefix('notification-config')->group(function () {
                 Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'index']);

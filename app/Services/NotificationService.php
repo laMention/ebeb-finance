@@ -103,7 +103,17 @@ class NotificationService
     {
         $canalUp = strtoupper($canal);
 
-        // Vérifier si le canal est activé (sauf IN_APP toujours autorisé)
+        // Vérifier les flags globaux NOTIF_SMS / NOTIF_EMAIL (Single Source of Truth)
+        $globalKey = match ($canalUp) {
+            'SMS'   => 'NOTIF_SMS',
+            'EMAIL' => 'NOTIF_EMAIL',
+            default => null,
+        };
+        if ($globalKey && !ParametreGlobalService::estActif($globalKey)) {
+            return ['envoye' => false, 'error' => "Canal {$canalUp} désactivé dans les paramètres globaux."];
+        }
+
+        // Vérifier si le canal est activé dans NotificationConfig (sauf IN_APP toujours autorisé)
         if ($canalUp !== 'IN_APP') {
             try {
                 $configService = app(NotificationConfigService::class);
