@@ -52,11 +52,20 @@
                 $admin->setRememberToken($token);
             }
 
+            // Charger les rôles et calculer les permissions pour le frontend
+            $admin->load(['roles']);
+            $hasAllPermissions = $admin->isSuperAdmin();
+            $permissions       = $hasAllPermissions
+                ? []  // frontend détectera has_all_permissions=true et accordera tout
+                : $admin->getAllPermissions()->pluck('name')->values()->toArray();
+
             return [
-                'success' => true,
-                'message' => 'Connexion réussie.',
-                'admin' => $admin,
-                'token' => 'Bearer '.$token,
+                'success'             => true,
+                'message'             => 'Connexion réussie.',
+                'admin'               => $admin,
+                'token'               => 'Bearer ' . $token,
+                'permissions'         => $permissions,
+                'has_all_permissions' => $hasAllPermissions,
             ];
         }
 
@@ -112,23 +121,21 @@
         }
 
         // Infos profil administrateur
-        public function infoProfil(Administrateur $admin){
-            if ($admin->isSuperAdmin()) {
-                // Super-admin a toutes les permissions, pas besoin de les lister
-                $data = $admin->load(['roles']);
-                
-                //Ajouter une indication pour le front
-                $data->has_all_permissions = true;
-            } else {
-                // Charger les rôles et leurs permissions si ce n'est pas le super-admin
-                $data = $admin->load(['roles', 'roles.permissions']);
-                $data->has_all_permissions = false;
-            }
-            
+        public function infoProfil(Administrateur $admin): array
+        {
+            $hasAllPermissions = $admin->isSuperAdmin();
+
+            $admin->load(['roles']);
+
+            $permissions = $hasAllPermissions
+                ? []  // super-admin : le front utilise has_all_permissions
+                : $admin->getAllPermissions()->pluck('name')->values()->toArray();
 
             return [
-                'success'=> true,
-                'admin' => $data
+                'success'             => true,
+                'admin'               => $admin,
+                'permissions'         => $permissions,
+                'has_all_permissions' => $hasAllPermissions,
             ];
         }
     }

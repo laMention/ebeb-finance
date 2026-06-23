@@ -33,11 +33,13 @@ class AuthController extends BaseController
             $admin = $result['admin'] ?? null;
             AuditLogger::log('ADMIN.CONNEXION', $admin instanceof \App\Models\Administrateur ? $admin : null,
                 'administrateurs', $admin->id ?? null, null, ['login' => $validated['email_telephone'] ?? null]);
-            
+
             $data = [
-                'success' => $result['success'],
-                'admin' => $result['admin'],
-                'token' => $result['token'],
+                'success'             => $result['success'],
+                'admin'               => $result['admin'],
+                'token'               => $result['token'],
+                'permissions'         => $result['permissions'] ?? [],
+                'has_all_permissions' => $result['has_all_permissions'] ?? false,
             ];
 
             return $this->sendResponse($data, $result['message'] ?? 'Connexion réussie');
@@ -73,10 +75,13 @@ class AuthController extends BaseController
     // Methode pour recuperer les infos de l'admin
     public function recupererInfoProfil(Request $request){
         try {
+            $result = $this->adminService->infoProfil($request->user());
 
-            $data = $this->adminService->infoProfil($request->user());
-
-            return $this->sendResponse($data, 'Profil utilisateur' );
+            return $this->sendResponse([
+                'admin'               => $result['admin'],
+                'permissions'         => $result['permissions'],
+                'has_all_permissions' => $result['has_all_permissions'],
+            ], 'Profil utilisateur');
         }catch (\Exception $e) {
             return $this->throw($e);
         }
