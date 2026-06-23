@@ -16,8 +16,11 @@ class LogAudit extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    // public function administrateur()
-    // {
-    //     return $this->belongsTo(Administrateur::class);
-    // }
+    protected function casts(): array
+    {
+        return [
+            'donnees_avant' => 'array',
+            'donnees_apres' => 'array',
+        ];
+    }
 }

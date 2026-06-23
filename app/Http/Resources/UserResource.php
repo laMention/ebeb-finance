@@ -17,7 +17,7 @@ class UserResource extends JsonResource
         return [
             "uuid" => $this->id,
             "nom" => $this->nom,
-            "prenom" => $this->nom,
+            "prenom" => $this->prenom,
             "email" => $this->email,
             "date_naissance" => format_date_fr_chiffre($this->date_naissance) ?? null,
             "lieu_naissance" => $this->lieu_naissance,
@@ -33,9 +33,11 @@ class UserResource extends JsonResource
             "village" => $this->village,
             "adresse_postale" => $this->adresse_postale,
             "sexe" => $this->sexe,
-            "situation_familiale" => $this->situation_familiale,
-            "nombre_enfants" => $this->nombre_enfants,
-            "date_activation" => $this->date_activation,
+            "situation_familiale" => $this->situation_familiale ?? mettre_en_majuscule('célibataire'),
+            "nombre_enfants" => $this->nombre_enfants ?? 0,
+            "date_activation" => format_date_fr_chiffre($this->date_activation),
+            "created_at" => format_date_fr_chiffre($this->created_at),
+            "derniere_connexion" => format_date_fr_chiffre($this->derniere_connexion),
             "informationProfessionnelle" => $this->whenLoaded('informationProfessionnelle', function () {
                 return new InformationProfessionnelleResource($this->informationProfessionnelle);
             }),
@@ -66,167 +68,156 @@ class UserResource extends JsonResource
             'compteMobileMoneys' => $this->whenLoaded('compteMobileMoneys', function () {
                 return $this->compteMobileMoneys->map(function ($mobile_money) {
                     return [
-                        'uuid' => $this->mobile_money->id,
-                        'operateur' => $this->mobile_money->operateur,
-                        'numero_compte' => $this->mobile_money->numero_compte,
-                        'est_principal' => $this->mobile_money->est_principal,
-                        'est_actif' => $this->mobile_money->est_actif,
+                        'uuid' => $mobile_money->id,
+                        'operateur' => $mobile_money->operateur,
+                        'numero_compte' => $mobile_money->numero_compte,
+                        'est_principal' => $mobile_money->est_principal,
+                        'est_actif' => $mobile_money->est_actif,
                     ];
                 });
             }),
             "enfants" => $this->whenLoaded("enfants", function () {
                 return $this->enfants->map(function ($enfant) {
                     return [
-                        "nom" => $this->enfant->nom,
-                        "prenom" => $this->enfant->prenom,
-                        "date_naissance" => $this->enfant->date_naissance,
-                        "lieu_naissance" => $this->enfant->lieu_naissance,
+                        "nom" => $enfant->nom,
+                        "prenom" => $enfant->prenom,
+                        "date_naissance" => $enfant->date_naissance,
+                        "lieu_naissance" => $enfant->lieu_naissance,
                     ];
                 });
             }),
-            "cotisations" =>$this->whenLoaded("cotisations", function () {
+            "cotisations" => $this->whenLoaded("cotisations", function () {
                 return $this->cotisations->map(function ($cotisation) {
+                    $tc = $cotisation->typeCotisation;
                     return [
-                        "mois" => $this->cotisation->mois,
-                        "annee" => $this->cotisation->annee,
-                        "montant_verse" => $this->cotisation->montant_verse,
-                        "montant_objectif" => $this->cotisation->montant_objectif,
-                        "statut" => $this->cotisation->statut,
-                        "numero_adherent" => $this->cotisation->numero_adherent,
-                        "date_paiement" => $this->cotisation->date_paiement,
-                        "typeCotisation" => $this->whenLoaded('typeCotisation', function () {
-                            return [
-                                'uuid' => $this->typeCotisation->id,
-                                'libelle' => $this->typeCotisation->libelle,
-                                'code' => $this->typeCotisation->code,
-                                'categorie' => $this->typeCotisation->categorie,
-                                'est_obligatoire' => $this->typeCotisation->est_obligatoire,
-                                'est_actif' => $this->typeCotisation->est_actif,
-                            ];
-                        }),
+                        "mois"             => $cotisation->mois,
+                        "annee"            => $cotisation->annee,
+                        "montant_verse"    => $cotisation->montant_verse,
+                        "montant_objectif" => $cotisation->montant_objectif,
+                        "statut"           => $cotisation->statut,
+                        "numero_adherent"  => $cotisation->numero_adherent,
+                        "date_paiement"    => $cotisation->date_paiement,
+                        "typeCotisation"   => $tc ? [
+                            'uuid'            => $tc->id,
+                            'libelle'         => $tc->libelle,
+                            'code'            => $tc->code,
+                            'categorie'       => $tc->categorie,
+                            'est_obligatoire' => $tc->est_obligatoire,
+                            'est_actif'       => $tc->est_actif,
+                        ] : null,
                     ];
                 });
             }),
-            "escrows" =>$this->whenLoaded("escrows", function () {
+            "escrows" => $this->whenLoaded("escrows", function () {
                 return $this->escrows->map(function ($escrow) {
+                    $op = $escrow->operation;
                     return [
-                        "user_id" => $this->escrow->user_id,
-                        "operation_id" => $this->escrow->operation_id,
-                        "montant" => $this->escrow->montant,
-                        "statut" => $this->escrow->statut,
-                        "raison_blocage" => $this->escrow->raison_blocage,
-                        "libere_at" => $this->escrow->libere_at ? format_date_fr_chiffre($this->escrow->libere_at) : null,
-                        "operation" => $this->whenLoaded('operation', function () {
-                            return [
-                                'uuid' => $this->operation->id,
-                                'montant' => $this->operation->montant,
-                                'type_operation' => $this->operation->type_operation,
-                                'description' => $this->operation->description,
-                                'statut' => $this->operation->statut,
-                            ];
-                        }),
+                        "user_id"        => $escrow->user_id,
+                        "operation_id"   => $escrow->operation_id,
+                        "montant"        => $escrow->montant,
+                        "statut"         => $escrow->statut,
+                        "raison_blocage" => $escrow->raison_blocage,
+                        "libere_at"      => $escrow->libere_at ? format_date_fr_chiffre($escrow->libere_at) : null,
+                        "operation"      => $op ? [
+                            'uuid'           => $op->id,
+                            'montant'        => $op->montant,
+                            'type_operation' => $op->type_operation,
+                            'description'    => $op->description,
+                            'statut'         => $op->statut,
+                        ] : null,
                     ];
                 });
             }),
             "operations" => $this->whenLoaded("operations", function () {
                 return $this->operations->map(function ($operation) {
+                    $tc = $operation->type_cotisation;
+                    $oe = $operation->objectif_epargne;
+                    $pe = $operation->paiement_entrant;
                     return [
-                        "uuid"=> $this->operation->id,
-                        "montant"=> $this->operation->montant,
-                        "type_operation"=> $this->operation->type_operation,
-                        "description"=> $this->operation->description,
-                        "statut"=> $this->operation->statut,
-                        "type_cotisation"=> $this->whenLoaded('type_cotisation', function () {
-                            return [
-                                'uuid' => $this->type_cotisation->id,
-                                'libelle' => $this->type_cotisation->libelle,
-                                'code' => $this->type_cotisation->code,
-                                'categorie' => $this->type_cotisation->categorie,
-                                'est_obligatoire' => $this->type_cotisation->est_obligatoire,
-                                'est_actif' => $this->type_cotisation->est_actif,
-                            ];
-                        }) ?? '',
-                        "objectif_epargne"=> $this->whenLoaded('objectif_epargne', function () {
-                            return [
-                                'uuid' => $this->objectif_epargne->id,
-                                'libelle' => $this->objectif_epargne->libelle,
-                                'montant_cible' => $this->objectif_epargne->montant_cible,
-                                'montant_epargne' => $this->objectif_epargne->montant_epargne,
-                                'date_limite' => format_date_fr_chiffre($this->objectif_epargne->date_limite),
-                                'est_actif' => $this->objectif_epargne->est_actif,
-                            ];
-                        }) ?? "",
-                        "paiement_entrant"=> $this->whenLoaded('paiement_entrant', function () {
-                            return [
-                                'uuid' => $this->paiement_entrant->id,
-                                'montant_brut' => $this->paiement_entrant->montant_brut,
-                                'statut' => $this->paiement_entrant->statut,
-                                'reference_externe' => $this->paiement_entrant->reference_externe,
-                                'operateur_source' => $this->paiement_entrant->operateur_source,
-                                'qr_code_ref' => $this->paiement_entrant->qr_code_ref,
-                            ];
-                        }) ?? "",
+                        "uuid"             => $operation->id,
+                        "montant"          => $operation->montant,
+                        "type_operation"   => $operation->type_operation,
+                        "description"      => $operation->description,
+                        "statut"           => $operation->statut,
+                        "type_cotisation"  => $tc ? [
+                            'uuid'            => $tc->id,
+                            'libelle'         => $tc->libelle,
+                            'code'            => $tc->code,
+                            'categorie'       => $tc->categorie,
+                            'est_obligatoire' => $tc->est_obligatoire,
+                            'est_actif'       => $tc->est_actif,
+                        ] : null,
+                        "objectif_epargne" => $oe ? [
+                            'uuid'            => $oe->id,
+                            'libelle'         => $oe->libelle,
+                            'montant_cible'   => $oe->montant_cible,
+                            'montant_epargne' => $oe->montant_epargne,
+                            'date_limite'     => format_date_fr_chiffre($oe->date_limite),
+                            'est_actif'       => $oe->est_actif,
+                        ] : null,
+                        "paiement_entrant" => $pe ? [
+                            'uuid'              => $pe->id,
+                            'montant_brut'      => $pe->montant_brut,
+                            'statut'            => $pe->statut,
+                            'reference_externe' => $pe->reference_externe,
+                            'operateur_source'  => $pe->operateur_source,
+                            'qr_code_ref'       => $pe->qr_code_ref,
+                        ] : null,
                     ];
                 });
             }),
 
             "paiementsEntrants" => $this->whenLoaded("paiementsEntrants", function () {
                 return $this->paiementsEntrants->map(function ($paiement) {
+                    $op  = $paiement->operation;
+                    $cmm = $op?->compte_mobile_money ?? null;
                     return [
-                        'uuid' => $this->paiement->id,
-                        "user_id" => $this->paiement->user_id,
-                        'montant_brut' => $this->paiement->montant_brut,
-                        'statut' => $this->paiement->statut,
-                        'reference_externe' => $this->paiement->reference_externe,
-                        'operateur_source' => $this->paiement->operateur_source,
-                        'qr_code_ref' => $this->paiement->qr_code_ref,
-                        "operation" => $this->whenLoaded('operation', function () {
-                            return [
-                                'uuid' => $this->operation->id,
-                                'montant' => $this->operation->montant,
-                                'type_operation' => $this->operation->type_operation,
-                                'description' => $this->operation->description,
-                                'statut' => $this->operation->statut,
-                                "compte_mobile_money" => $this->whenLoaded('compte_mobile_money', function () {
-                                    return [
-                                        'uuid' => $this->compte_mobile_money->id,
-                                        'operateur' => $this->compte_mobile_money->operateur,
-                                        'numero_compte' => $this->compte_mobile_money->numero_compte,
-                                        'est_principal' => $this->compte_mobile_money->est_principal,
-                                        'est_actif' => $this->compte_mobile_money->est_actif,
-                                    ];
-                                }),
-                            ];
-                        }),
+                        'uuid'              => $paiement->id,
+                        "user_id"           => $paiement->user_id,
+                        'montant_brut'      => $paiement->montant_brut,
+                        'statut'            => $paiement->statut,
+                        'reference_externe' => $paiement->reference_externe,
+                        'operateur_source'  => $paiement->operateur_source,
+                        'qr_code_ref'       => $paiement->qr_code_ref,
+                        "operation"         => $op ? [
+                            'uuid'           => $op->id,
+                            'montant'        => $op->montant,
+                            'type_operation' => $op->type_operation,
+                            'description'    => $op->description,
+                            'statut'         => $op->statut,
+                            "compte_mobile_money" => $cmm ? [
+                                'uuid'          => $cmm->id,
+                                'operateur'     => $cmm->operateur,
+                                'numero_compte' => $cmm->numero_compte,
+                                'est_principal' => $cmm->est_principal,
+                                'est_actif'     => $cmm->est_actif,
+                            ] : null,
+                        ] : null,
                     ];
                 });
             }),
             "reglePrelevements" => $this->whenLoaded("reglePrelevements", function () {
                 return $this->reglePrelevements->map(function ($regle) {
+                    $tc = $regle->type_cotisation;
                     return [
-                        'uuid' => $this->regle->id,
-                        "user_id" => $this->regle->user_id,
-                        'type_calcul' => $this->regle->type_calcul,
-                        'valeur' => $this->regle->valeur,
-                        'est_actif' => $this->regle->est_actif,
-                        'ordre_priorite' => $this->regle->ordre_priorite,
-                        "type_cotisation_id" => $this->regle->type_cotisation_id,
-                        "type_cotisation" => $this->whenLoaded('type_cotisation', function () {
-                            return [
-                                'uuid' => $this->type_cotisation->id,
-                                'libelle' => $this->type_cotisation->libelle,
-                                'code' => $this->type_cotisation->code,
-                                'categorie' => $this->type_cotisation->categorie,
-                                'est_obligatoire' => $this->type_cotisation->est_obligatoire,
-                                'est_actif' => $this->type_cotisation->est_actif,                               
-                            ];
-                        }),
+                        'uuid'               => $regle->id,
+                        "user_id"            => $regle->user_id,
+                        'type_calcul'        => $regle->type_calcul,
+                        'valeur'             => $regle->valeur,
+                        'est_actif'          => $regle->est_actif,
+                        'ordre_priorite'     => $regle->ordre_priorite,
+                        "type_cotisation_id" => $regle->type_cotisation_id,
+                        "type_cotisation"    => $tc ? [
+                            'uuid'            => $tc->id,
+                            'libelle'         => $tc->libelle,
+                            'code'            => $tc->code,
+                            'categorie'       => $tc->categorie,
+                            'est_obligatoire' => $tc->est_obligatoire,
+                            'est_actif'       => $tc->est_actif,
+                        ] : null,
                     ];
                 });
             }),
-
-
-
 
         ];
     }

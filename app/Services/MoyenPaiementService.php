@@ -21,7 +21,7 @@ class MoyenPaiementService
                 $query->where('operateur', 'like', '%'.mettre_en_majuscule($filtres['operateur']).'%');
             }
 
-            $moyens = $query->orderBy('libelle')->get();
+            $moyens = $query->withCount('comptes_mobile_money')->orderBy('libelle')->get();
 
             return [
                 'success' => true,

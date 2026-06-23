@@ -4,27 +4,13 @@ namespace App\Services;
 
 use App\Models\SessionOtp;
 use App\Models\User;
-// use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OtpMail;
 use Carbon\Carbon;
 
 class OtpService
 {
-    /**
-     * Longueur du code OTP
-     */
     private const OTP_LENGTH = 6;
-
-    /**
-     * Durée de validité du code OTP en minutes
-     */
-    private const OTP_EXPIRY_MINUTES = 10;
-
-    /**
-     * Nombre maximum de tentatives de vérification
-     */
-    private const MAX_ATTEMPTS = 3;
 
     /**
      * Génère et envoie un code OTP à un utilisateur
@@ -41,9 +27,10 @@ class OtpService
         // Supprimer les anciens OTP non utilisés pour cet telephone
         SessionOtp::where('user_id', $user_id)->delete();
 
-        // Générer le code OTP
-        $code = $this->generateCode();
-        $expiresAt = Carbon::now()->addMinutes(self::OTP_EXPIRY_MINUTES);
+        // Générer le code OTP — durée de validité depuis les paramètres globaux
+        $dureeSecondes = (int) ParametreGlobalService::get('OTP_DUREE_SECONDES', '300');
+        $code      = $this->generateCode();
+        $expiresAt = Carbon::now()->addSeconds($dureeSecondes);
 
         // Stocker le code OTP
         SessionOtp::create([
@@ -120,8 +107,9 @@ class OtpService
             ];
         }
 
-        // Vérifier le nombre de tentatives
-        if ($otp->tentatives >= self::MAX_ATTEMPTS) {
+        // Vérifier le nombre de tentatives (depuis les paramètres globaux)
+        $maxTentatives = (int) ParametreGlobalService::get('OTP_TENTATIVES_MAX', '3');
+        if ($otp->tentatives >= $maxTentatives) {
             SessionOtp::where('user_id', $user->id)->delete();
             return [
                 'success' => false,
@@ -138,7 +126,7 @@ class OtpService
             SessionOtp::where('user_id', $user->id)
                 ->increment('tentatives');
 
-            $remainingAttempts = self::MAX_ATTEMPTS - $otp->tentatives - 1;
+            $remainingAttempts = $maxTentatives - $otp->tentatives - 1;
             return [
                 'success' => false,
                 'message' => "Code OTP incorrect. Il vous reste {$remainingAttempts} tentative(s).",

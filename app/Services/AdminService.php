@@ -2,7 +2,9 @@
     namespace App\Services;
 
     use App\Models\Administrateur;
+    use Illuminate\Http\UploadedFile;
     use Illuminate\Support\Facades\Hash;
+    use Illuminate\Support\Facades\Storage;
 
     class AdminService
     {
@@ -69,6 +71,44 @@
                 'success' => true,
                 'message' => 'Déconnexion réussie.',            
             ]; 
+        }
+
+        // Mise à jour des informations personnelles
+        public function mettreAjourProfil(Administrateur $admin, array $data): array
+        {
+            $allowed = ['nom', 'prenom', 'email', 'telephone', 'ville', 'adresse'];
+            $updates = array_intersect_key($data, array_flip($allowed));
+
+            if (!empty($updates)) {
+                $admin->update($updates);
+            }
+
+            return ['success' => true, 'admin' => $admin->fresh()->load(['roles'])];
+        }
+
+        // Changement de mot de passe
+        public function changerMotDePasse(Administrateur $admin, array $data): array
+        {
+            if (!Hash::check($data['current_password'], $admin->password)) {
+                return ['success' => false, 'message' => 'Mot de passe actuel incorrect.'];
+            }
+
+            $admin->update(['password' => $data['password']]);
+
+            return ['success' => true, 'message' => 'Mot de passe modifié avec succès.'];
+        }
+
+        // Changement de photo de profil
+        public function changerPhoto(Administrateur $admin, UploadedFile $photo): array
+        {
+            if ($admin->photo_profil && Storage::disk('public')->exists($admin->photo_profil)) {
+                Storage::disk('public')->delete($admin->photo_profil);
+            }
+
+            $path = $photo->store('admins/photos', 'public');
+            $admin->update(['photo_profil' => $path]);
+
+            return ['success' => true, 'admin' => $admin->fresh()->load(['roles'])];
         }
 
         // Infos profil administrateur

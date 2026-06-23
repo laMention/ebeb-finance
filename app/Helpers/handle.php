@@ -4,31 +4,35 @@ use Carbon\Carbon;
 use Illuminate\Support\Str;
 //  Methode pour mettre en majuscule
 if (!function_exists('mettre_en_majuscule')) {
-    function mettre_en_majuscule(string $string){
+    function mettre_en_majuscule(?string $string): ?string
+    {
         return mb_strtoupper($string);
     }
 }
 
 // Ajouter +225 devant les numero de telpehone
 if (!function_exists('ajout_prefix_telephone')) {
-    function ajout_prefix_telephone(string $telephone){
+    function ajout_prefix_telephone(?string $telephone): ?string
+    {
         return  '+225' .$telephone;
     }
 }
 
 // Formater les date en francais en chiffre (JOUR/MOIS/ANNEE)
 if (!function_exists('format_date_fr_chiffre')) {
-    function format_date_fr_chiffre(string $date){
+    function format_date_fr_chiffre(?string $date): ?string
+    {
         if (empty($date)) {
-            return '';
+            return null;
         }
 
-        return Carbon::parse($date)->format('d/m/Y');
+        return Carbon::parse($date)->format('d/m/Y H:i:s');
     }
 }
 // Formater les date en francais en lettre (JOUR/MOIS/ANNEE)
 if (!function_exists('format_date_fr_lettre')) {
-    function format_date_fr_lettre($date, string $format = 'D MMMM YYYY'){
+    function format_date_fr_lettre($date, ?string $format = 'D MMMM YYYY'): ?string
+    {
         if (empty($date)) {
             return '';
         }
@@ -43,7 +47,7 @@ if (!function_exists('storage_public_path')) {
      * @param  string  $path  Le chemin relatif de l'image (ex: 'avatars/user.jpg').
      * @return string
      */
-    function storage_public_path(string $path = ''): string
+    function storage_public_path(?string $path = ''): ?string
     {
         if (empty($path)) {
             return '';

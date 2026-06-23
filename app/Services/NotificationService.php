@@ -8,7 +8,6 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class NotificationService
 {
@@ -97,25 +96,64 @@ class NotificationService
     }
 
     /**
-     * Envoyer selon le canal (email, sms, push, in-app)
+     * Envoyer selon le canal (email, sms, push, in-app).
+     * Vérifie l'activation du canal et journalise le résultat.
      */
     private function envoyerSelonCanal(User $user, string $canal, string $type, array $contenu): array
     {
-        switch ($canal) {
-            case 'email':
-                return $this->envoyerEmail($user, $type, $contenu);
-            case 'sms':
-                return $this->envoyerSMS($user, $contenu);
-            case 'push':
-                return $this->envoyerPush($user, $contenu);
-            case 'in-app':
-                return $this->envoyerInApp($user, $contenu);
-            default:
-                return [
-                    'envoye' => false,
-                    'error' => 'Canal de notification non supporté'
-                ];
+        $canalUp = strtoupper($canal);
+
+        // Vérifier les flags globaux NOTIF_SMS / NOTIF_EMAIL (Single Source of Truth)
+        $globalKey = match ($canalUp) {
+            'SMS'   => 'NOTIF_SMS',
+            'EMAIL' => 'NOTIF_EMAIL',
+            default => null,
+        };
+        if ($globalKey && !ParametreGlobalService::estActif($globalKey)) {
+            return ['envoye' => false, 'error' => "Canal {$canalUp} désactivé dans les paramètres globaux."];
         }
+
+        // Vérifier si le canal est activé dans NotificationConfig (sauf IN_APP toujours autorisé)
+        if ($canalUp !== 'IN_APP') {
+            try {
+                $configService = app(NotificationConfigService::class);
+                if (!$configService->estActif($canalUp)) {
+                    return ['envoye' => false, 'error' => "Canal {$canalUp} désactivé."];
+                }
+            } catch (\Exception $e) {
+                Log::warning("Impossible de vérifier le canal {$canalUp}", ['error' => $e->getMessage()]);
+            }
+        }
+
+        $result = match (strtolower($canal)) {
+            'email'  => $this->envoyerEmail($user, $type, $contenu),
+            'sms'    => $this->envoyerSMS($user, $contenu),
+            'push'   => $this->envoyerPush($user, $contenu),
+            'in-app', 'in_app' => $this->envoyerInApp($user, $contenu),
+            default  => ['envoye' => false, 'error' => 'Canal de notification non supporté'],
+        };
+
+        // Journalisation asynchrone (swallowed errors — ne doit pas bloquer l'envoi)
+        try {
+            app(NotificationLogService::class)->enregistrer(
+                canal:           $canalUp,
+                typeNotification: $type,
+                destinataire:    match (strtolower($canal)) {
+                    'email'  => $user->email ?? 'inconnu',
+                    'sms'    => $user->telephone ?? 'inconnu',
+                    default  => $user->id,
+                },
+                statut:          $result['envoye'] ? 'ENVOYE' : 'ECHEC',
+                sujet:           $contenu['titre'] ?? null,
+                contenu:         $contenu['message'] ?? null,
+                messageErreur:   $result['error'] ?? null,
+                userId:          $user->id,
+            );
+        } catch (\Exception $e) {
+            Log::warning('Impossible de journaliser la notification', ['error' => $e->getMessage()]);
+        }
+
+        return $result;
     }
 
     /**

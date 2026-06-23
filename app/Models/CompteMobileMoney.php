@@ -7,14 +7,22 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'operateur', 'numero_compte', 'est_principal', 'est_actif','moyen_paiement_id'])]
+#[Fillable(['user_id', 'operateur', 'numero_compte', 'est_principal', 'est_actif', 'statut', 'moyen_paiement_id'])]
 class CompteMobileMoney extends Model
 {
-    use SoftDeletes,HasUuids;
-    //
+    use SoftDeletes, HasUuids;
+
     protected $table = 'compte_mobile_moneys';
     public $incrementing = false;
     protected $keyType = 'string';
+
+    protected function casts(): array
+    {
+        return [
+            'est_principal' => 'boolean',
+            'est_actif'     => 'boolean',
+        ];
+    }
 
     public function user()
     {

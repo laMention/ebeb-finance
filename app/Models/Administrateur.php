@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
@@ -49,6 +50,16 @@ class Administrateur extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->hasRole('super-admin');
+    }
+
+    public function pages_crees():HasMany
+    {
+        return $this->hasMany(Page::class,'cree_par');
+    }
+
+    public function pages_modifiees():HasMany
+    {
+        return $this->hasMany(Page::class,'modifie_par');
     }
 
 }

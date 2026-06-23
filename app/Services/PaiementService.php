@@ -6,11 +6,11 @@ use App\Models\CompteMobileMoney;
 use App\Models\ObjectifEpargne;
 use App\Models\Operation;
 use App\Models\PaiementEntrant;
-use App\Models\ParametreGlobal;
 use App\Models\QrcodePaiement;
 use App\Models\ReglePrelevement;
 use App\Models\TypeCotisation;
 use App\Models\User;
+use App\Services\AlerteGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -37,10 +37,20 @@ class PaiementService
                 return [
                     'success'    => false,
                     'message'    => 'Une transaction ayant cette référence existe déjà.'
-                ];                
+                ];
             }
 
             [$user, $compteMobileMoney, $operateurSource] = $this->identifierUtilisateur($data);
+
+            // Vérifier que le service opérateur est activé dans les paramètres globaux
+            $serviceKey = $this->resoudreServiceOperateur($operateurSource ?? '');
+            if ($serviceKey && !ParametreGlobalService::estActif($serviceKey)) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'message' => "Le service {$operateurSource} est temporairement désactivé.",
+                ];
+            }
 
 
             $paiement = PaiementEntrant::create([
@@ -154,7 +164,7 @@ class PaiementService
                 ->orderBy('ordre_priorite')
                 ->get(),
             'declaration_revenu'  => $user->declarationRevenu,
-            'taux_commission'     => (float) (ParametreGlobal::where('cle', 'TAUX_COMMISSION')->value('valeur') ?? 2.5),
+            'taux_commission'     => (float) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
         ];
     }
 
@@ -287,6 +297,20 @@ class PaiementService
         }
     }
 
+    private function resoudreServiceOperateur(string $operateur): ?string
+    {
+        $map = [
+            'WAVE'         => 'SERVICE_WAVE',
+            'ORANGE_MONEY' => 'SERVICE_ORANGE_MONEY',
+            'ORANGE'       => 'SERVICE_ORANGE_MONEY',
+            'MTN'          => 'SERVICE_MTN',
+            'MTN_MONEY'    => 'SERVICE_MTN',
+            'MOOV'         => 'SERVICE_MOOV',
+            'MOOV_MONEY'   => 'SERVICE_MOOV',
+        ];
+        return $map[strtoupper($operateur)] ?? null;
+    }
+
     private function resoudreTypeOperation(TypeCotisation $type): string
     {
         $code      = strtoupper($type->code ?? '');
@@ -324,9 +348,19 @@ class PaiementService
 
                 // Objectif d'épargne atteint ?
                 $totalEpargne = (float) $objectif->montant_epargne + $repartition['epargne'];
-                if ($totalEpargne >= (float) $objectif->montant_cible) {
+                $objectifAtteint = $totalEpargne >= (float) $objectif->montant_cible;
+                if ($objectifAtteint) {
                     $this->notificationService->notifierObjectifEpargneAtteint($user, $objectif->libelle);
                 }
+
+                AlerteGenerator::transaction(
+                    $objectifAtteint ? 'SUCCES' : 'INFO',
+                    $objectifAtteint
+                        ? "Objectif d'épargne atteint — {$objectif->libelle}"
+                        : "Prélèvement épargne automatique — {$objectif->libelle}",
+                    "{$user->prenom} {$user->nom} : " . number_format($repartition['epargne'], 0, ',', ' ') . " FCFA prélevé(s) pour l'épargne « {$objectif->libelle} »."
+                        . ($objectifAtteint ? " Objectif de " . number_format((float) $objectif->montant_cible, 0, ',', ' ') . " FCFA atteint." : ''),
+                );
             }
 
             // 3. Cotisations et assurances
@@ -337,6 +371,12 @@ class PaiementService
                 str_contains($categorie, 'ASSURANCE')
                     ? $this->notificationService->notifierDeductionAssurance($user, $cot['montant'], $type->libelle)
                     : $this->notificationService->notifierDeductionCotisation($user, $cot['montant'], $type->libelle);
+
+                AlerteGenerator::transaction(
+                    'INFO',
+                    "Prélèvement cotisation — {$type->libelle}",
+                    "{$user->prenom} {$user->nom} : " . number_format($cot['montant'], 0, ',', ' ') . " FCFA prélevé(s) pour la cotisation « {$type->libelle} ».",
+                );
             }
 
             // 4. Commission
