@@ -18,12 +18,12 @@ class PortefeuilleEpargne extends Model
     protected function casts(): array
     {
         return [
-            'total_epargne'            => 'float',
-            'solde_epargne_disponible' => 'float',
-            'total_verse_cotisations'  => 'float',
-            'total_commissions_payees' => 'float',
-            'total_recu_brut'          => 'float',
-            'montant_net_total'        => 'float',
+            'total_epargne'            => 'decimal:2',
+            'solde_epargne_disponible' => 'decimal:2',
+            'total_verse_cotisations'  => 'decimal:2',
+            'total_commissions_payees' => 'decimal:2',
+            'total_recu_brut'          => 'decimal:2',
+            'montant_net_total'        => 'decimal:2',
             'recalcule_at'             => 'datetime',
         ];
     }

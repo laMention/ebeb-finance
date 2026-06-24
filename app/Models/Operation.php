@@ -31,7 +31,7 @@ class Operation extends Model
     protected function casts(): array
     {
         return [
-            'montant'        => 'float',
+            'montant'        => 'decimal:2',
             'date_operation' => 'datetime',
         ];
     }

@@ -24,6 +24,14 @@ class ExportService
      */
     public function exporter(string $module, array $params): array
     {
+        // Journalisation de chaque export (SEC-018 — traçabilité admin)
+        \Log::info('export-admin', [
+            'module'   => $module,
+            'admin_id' => request()->user()?->id,
+            'ip'       => request()->ip(),
+            'filtres'  => array_keys(array_filter($params)),
+        ]);
+
         return match ($module) {
             'utilisateurs'    => $this->utilisateurs($params),
             'transactions'    => $this->transactions($params),

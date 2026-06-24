@@ -24,7 +24,7 @@ class RenvoyerCodeOtpRequest extends FormRequest
     {
         return [
             //
-            'telephone' => 'required|min:10|max:14|exists:users,telephone',
+            'telephone' => ['required', 'string', 'min:10', 'max:14', 'regex:/^[0-9+]+$/'],
 
         ];
     }
@@ -33,9 +33,9 @@ class RenvoyerCodeOtpRequest extends FormRequest
     {
         return [
             'telephone.required' => "Le numéro de téléphone est obligatoire.",
-            'telephone.min'     => "Le numéro de téléphone doit contenir au moins :min chiffres.",
-            'telephone.max'     => "Le numéro de téléphone doit contenir au maximum :max chiffres.",
-            'telephone.exists'   => "Ce numéro de téléphone est invalide ou n\'existe pas.",
+            'telephone.min'   => "Le numéro de téléphone doit contenir au moins :min chiffres.",
+            'telephone.max'   => "Le numéro de téléphone doit contenir au maximum :max chiffres.",
+            'telephone.regex' => "Le format du numéro de téléphone est invalide.",
         ];
     }
 }

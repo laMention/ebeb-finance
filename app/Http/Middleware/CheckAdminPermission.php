@@ -29,6 +29,13 @@ class CheckAdminPermission
 
         // Super-admin bypass — toutes les permissions sont implicites
         if (method_exists($admin, 'isSuperAdmin') && $admin->isSuperAdmin()) {
+            \Log::info('super-admin-bypass', [
+                'admin_id'    => $admin->id,
+                'route'       => $request->path(),
+                'method'      => $request->method(),
+                'permissions' => $permissions,
+                'ip'          => $request->ip(),
+            ]);
             return $next($request);
         }
 
@@ -41,7 +48,7 @@ class CheckAdminPermission
 
         return response()->json([
             'success'              => false,
-            'message'              => "Accès refusé. Permission manquante : " . implode(' ou ', $permissions) . '.',
+            'message'              => "Accès refusé. Vous n'avez pas la permission pour effectuer cette action. \n Permission manquante : " . implode(' ou ', $permissions) . '.',
             'required_permissions' => $permissions,
         ], 403);
     }

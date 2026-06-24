@@ -29,8 +29,9 @@ class CotisationService
         $mois  = now()->month;
         $annee = now()->year;
 
+        $montant         = (string) $montant;
         $objectifMensuel = $this->calculerObjectifMensuel($typeCotisation, $declaration);
-        $objectifAnnuel  = $objectifMensuel * 12;
+        $objectifAnnuel  = bcmul($objectifMensuel, '12', 2);
 
         $cotisation = Cotisation::firstOrCreate(
             [
@@ -51,36 +52,39 @@ class CotisationService
             ]
         );
 
-        // Calcul du total annuel APRÈS ce versement
-        $totalAnnuelAvant = (float) Cotisation::where('user_id', $user->id)
+        // Calcul du total annuel APRÈS ce versement (BCMath — SEC-004)
+        $totalAnnuelAvant = (string) Cotisation::where('user_id', $user->id)
             ->where('type_cotisation_id', $typeCotisationId)
             ->where('annee', $annee)
             ->where('statut', '!=', 'REPORT')
             ->sum('montant_verse');
 
         $montantAImputer = $montant;
-        $montantReport   = 0.0;
+        $montantReport   = '0.00';
 
-        if ($objectifAnnuel > 0) {
-            $resteAnnuel = max(0, $objectifAnnuel - $totalAnnuelAvant);
-            if ($montant > $resteAnnuel) {
+        if (bccomp($objectifAnnuel, '0.00', 2) > 0) {
+            $resteAnnuel = bcsub($objectifAnnuel, $totalAnnuelAvant, 2);
+            $resteAnnuel = bccomp($resteAnnuel, '0.00', 2) > 0 ? $resteAnnuel : '0.00';
+            if (bccomp($montant, $resteAnnuel, 2) > 0) {
                 $montantAImputer = $resteAnnuel;
-                $montantReport   = round($montant - $resteAnnuel, 2);
+                $montantReport   = bcsub($montant, $resteAnnuel, 2);
             }
         }
 
-        $nouveauVerse   = (float) $cotisation->montant_verse + $montantAImputer;
-        $montantRestant = max(0, (float) $cotisation->montant_objectif - $nouveauVerse);
+        $nouveauVerse   = bcadd((string) $cotisation->montant_verse, $montantAImputer, 2);
+        $tmp            = bcsub((string) $cotisation->montant_objectif, $nouveauVerse, 2);
+        $montantRestant = bccomp($tmp, '0.00', 2) > 0 ? $tmp : '0.00';
 
         $cotisation->update([
             'montant_verse'   => $nouveauVerse,
             'montant_restant' => $montantRestant,
-            'statut'          => $this->calculerStatut($nouveauVerse, (float) $cotisation->montant_objectif),
+            'statut'          => $this->calculerStatut($nouveauVerse, (string) $cotisation->montant_objectif),
             'date_paiement'   => now(),
         ]);
 
         // Si objectif annuel atteint, marquer toutes les cotisations de l'année
-        if ($objectifAnnuel > 0 && ($totalAnnuelAvant + $montantAImputer) >= $objectifAnnuel) {
+        if (bccomp($objectifAnnuel, '0.00', 2) > 0
+            && bccomp(bcadd($totalAnnuelAvant, $montantAImputer, 2), $objectifAnnuel, 2) >= 0) {
             $this->marquerObjectifAnnuelAtteint($user, $typeCotisationId, $annee);
             $this->notificationService->notifierObjectifCotisationAtteint($user, $typeCotisation->libelle);
         }
@@ -139,29 +143,29 @@ class CotisationService
         $report->update(['total_reporte' => 0]);
     }
 
-    public function calculerObjectifMensuel(TypeCotisation $type, ?DeclarationRevenu $declaration): float
+    public function calculerObjectifMensuel(TypeCotisation $type, ?DeclarationRevenu $declaration): string
     {
-        if (!$declaration) return 0;
+        if (!$declaration) return '0.00';
 
         $code      = strtoupper($type->code ?? '');
         $categorie = strtoupper($type->categorie ?? '');
 
         if (str_contains($code, 'CNPS') || str_contains($categorie, 'CNPS')) {
-            return round((float) $declaration->montant_cotisation_regime_base / 12, 2);
+            return bcdiv((string) $declaration->montant_cotisation_regime_base, '12', 2);
         }
 
         if (str_contains($code, 'AMU') || str_contains($categorie, 'AMU')) {
-            return round((float) $declaration->montant_cotisation_mensuelle / 2, 2);
+            return bcdiv((string) $declaration->montant_cotisation_mensuelle, '2', 2);
         }
 
-        return 0;
+        return '0.00';
     }
 
-    private function calculerStatut(float $verse, float $objectif): string
+    private function calculerStatut(string $verse, string $objectif): string
     {
-        if ($objectif <= 0) return 'EN_COURS';
-        if ($verse <= 0)    return 'NON_A_JOUR';
-        if ($verse >= $objectif) return 'OBJECTIF_ATTEINT';
+        if (bccomp($objectif, '0.00', 2) <= 0) return 'EN_COURS';
+        if (bccomp($verse,    '0.00', 2) <= 0) return 'NON_A_JOUR';
+        if (bccomp($verse, $objectif, 2) >= 0) return 'OBJECTIF_ATTEINT';
         return 'EN_COURS';
     }
 
