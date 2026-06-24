@@ -23,7 +23,7 @@ class ParametreGeneralController extends BaseController
             'logo_principal_url' => $p->logo_principal_url,
             'logo_favicon_url'   => $p->logo_favicon_url,
             'slogan'             => $p->slogan,
-            'icone_application'             => $p->icone_application
+            'icone_application_url'             => $p->icone_application_url
         ], 'Informations publiques de la plateforme.');
     }
 
