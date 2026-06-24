@@ -46,7 +46,7 @@
         <p class="notif-intro">
             Bonjour <strong>{{ $user->prenom }} {{ $user->nom }}</strong>,
         </p>
-        <p class="notif-intro">{{ $message }}</p>
+        <p class="notif-intro">{{ $corps }}</p>
 
         @if(isset($contenu['date_activation']))
             <div class="notif-detail">
@@ -63,7 +63,7 @@
         <p class="notif-intro">
             Bonjour <strong>{{ $user->prenom }} {{ $user->nom }}</strong>,
         </p>
-        <p class="notif-intro">{{ $message }}</p>
+        <p class="notif-intro">{{ $corps }}</p>
 
         @if(isset($contenu['type_document']))
             <div class="notif-detail">
@@ -86,7 +86,7 @@
         <p class="notif-intro">
             Bonjour <strong>{{ $user->prenom }} {{ $user->nom }}</strong>,
         </p>
-        <p class="notif-intro">{{ $message }}</p>
+        <p class="notif-intro">{{ $corps }}</p>
 
     @endif
 
