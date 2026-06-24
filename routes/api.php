@@ -100,6 +100,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //============================================ API PANEL ADMINISTRATION =========================================
 Route::prefix('administration')->group(function () {
+    // Public — branding plateforme (sans authentification)
+    Route::get('public/infos-plateforme', [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'infosPubliques'])
+        ->middleware('throttle:60,1');
+
     Route::prefix('auth')->middleware('throttle:5,1')->group(function () {
         Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);
     });

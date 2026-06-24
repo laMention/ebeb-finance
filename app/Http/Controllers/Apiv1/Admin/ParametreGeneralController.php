@@ -14,6 +14,19 @@ class ParametreGeneralController extends BaseController
 {
     public function __construct(private ParametreGeneralService $service) {}
 
+    /** GET /administration/public/infos-plateforme — branding public (sans auth) */
+    public function infosPubliques(): JsonResponse
+    {
+        $p = ParametreGeneralService::getInstance();
+        return $this->sendResponse([
+            'nom_plateforme'     => $p->nom_plateforme ?? 'E-BEB Finance',
+            'logo_principal_url' => $p->logo_principal_url,
+            'logo_favicon_url'   => $p->logo_favicon_url,
+            'slogan'             => $p->slogan,
+            'icone_application'             => $p->icone_application
+        ], 'Informations publiques de la plateforme.');
+    }
+
     /** GET /parametre-general — retourne les paramètres généraux */
     public function show(): JsonResponse
     {
