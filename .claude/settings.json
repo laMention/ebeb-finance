@@ -5,7 +5,8 @@
       "Bash(php -l app/Services/CotisationService.php)",
       "Bash(php -l app/Services/PortefeuilleService.php)",
       "Bash(php -l app/Http/Middleware/SecurityHeaders.php)",
-      "Bash(php -l app/Http/Middleware/CheckAdminPermission.php)"
+      "Bash(php -l app/Http/Middleware/CheckAdminPermission.php)",
+      "Bash(xargs grep -l \"logo_principal\\\\|logo\\\\|LOGO\")"
     ]
   }
 }
