@@ -131,7 +131,7 @@
                  alt="{{ $branding['nom_plateforme'] }}"
                  class="header-logo">
         @else
-            <h1 class="header-title">{{ $branding['nom_plateforme'] }}</h1>
+            <h1 class="header-title">{{ $branding['nom_plateforme'] ?? "E-BEB FINANCE" }}</h1>
         @endif
         @yield('header-subtitle')
     </div>

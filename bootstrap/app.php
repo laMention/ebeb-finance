@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'        => PermissionMiddleware::class,
             'role_or_permission'=> RoleOrPermissionMiddleware::class,
             'admin.perm'        => \App\Http\Middleware\CheckAdminPermission::class,
+            'compte.actif'      => \App\Http\Middleware\VerificationStatutCompteUtilisateurMiddleware::class,
         ]);
 
         $middleware->web(append: [
