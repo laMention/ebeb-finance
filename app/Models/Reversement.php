@@ -33,7 +33,7 @@ class Reversement extends Model
     protected function casts(): array
     {
         return [
-            'montant_total'    => 'float',
+            'montant_total'    => 'decimal:2',
             'date_reversement' => 'datetime',
             'date_execution'   => 'datetime',
             'periode_debut'    => 'date',

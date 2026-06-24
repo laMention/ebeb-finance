@@ -24,13 +24,13 @@ class AjoutDocumentKYCRequest extends FormRequest
     {
         return [
             // DOCUMENTS KYC
-            'type_document'=> ['required', 'string'],
+            'type_document' => ['required', 'string', 'in:CNI,PASSEPORT,PERMIS_CONDUIRE,CARTE_SEJOUR,ACTE_NAISSANCE'],
             'numero_document'=> ['required',  'string'],
             'document_etablie_le'=> ['required', 'date'],
             'document_expire_le'=> [ 'required', 'date'],
-            'url_recto' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_verso' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_selfie' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+            'url_recto' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'url_verso' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'url_selfie' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             // 'url_selfie'=> ['nullable', 'file','image','mimes:jpeg,png,jpg,gif,svg|max:2048'],
         ];
     }
@@ -39,7 +39,8 @@ class AjoutDocumentKYCRequest extends FormRequest
     {
         return [            
             'type_document.required' => 'Le type de document est obligatoire.',
-            'type_document.string' => 'Le type de document doit être une chaîne de caractères.',
+            'type_document.string'   => 'Le type de document doit être une chaîne de caractères.',
+            'type_document.in'       => 'Le type de document doit être : CNI, PASSEPORT, PERMIS_CONDUIRE, CARTE_SEJOUR ou ACTE_NAISSANCE.',
 
             'numero_document.required' => 'Le numéro de document est obligatoire.',
             'numero_document.string' => 'Le numéro de document doit être une chaîne de caractères.',

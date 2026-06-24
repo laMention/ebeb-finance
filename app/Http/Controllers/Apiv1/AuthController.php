@@ -50,7 +50,7 @@ class AuthController extends BaseController
 
                 $data = [
                     'user' => $user,
-                    'otp' => $otp
+                    'otp_envoi' => ['success' => $otp['success'], 'message' => $otp['message']],
                 ];
 
                 AlerteGenerator::utilisateur('SUCCES',
@@ -143,21 +143,28 @@ class AuthController extends BaseController
             $validated = $request->validated();
             // Verifier si le telephone est bon et envoyer un OTP
             $user = User::where('telephone', $validated['telephone'])->first();
-            if(!$user){
-                return $this->sendError('Ce numéro de téléphone n\'est pas valide ou n\'existe pas',[],400);
+            if (!$user) {
+                // Message générique pour éviter l'énumération de numéros (SEC-015)
+                return $this->sendResponse(
+                    ['otp_envoi' => ['success' => true, 'message' => 'Si ce numéro est enregistré, vous recevrez un code de vérification.']],
+                    'Si ce numéro est enregistré, vous recevrez un code de vérification.'
+                );
             }
             // envoyer OTP
             $otp = $this->otpService->generateAndSend($user);
-            
+
+            if (!$otp['success']) {
+                return $this->sendError($otp['message'], [], 500);
+            }
+
             $data = [
-                'user' => $user,
-                'otp' => $otp
+                'otp_envoi' => ['success' => $otp['success'], 'message' => $otp['message']],
             ];
 
-            return $this->sendResponse($data,'Utilisez le code OTP qui vous a été envoyé pour vous connecter'); 
+            return $this->sendResponse($data, 'Utilisez le code OTP qui vous a été envoyé pour vous connecter');
 
         } catch (\Throwable $th) {
-            //throw $th;
+            return $this->throw($th);
         }
     }
 

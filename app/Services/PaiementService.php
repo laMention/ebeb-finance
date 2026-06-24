@@ -28,18 +28,14 @@ class PaiementService
      */
     public function traiterPaiement(array $data): array
     {
+        // Vérification rapide avant transaction (fast-path) — la contrainte UNIQUE protège la race condition (SEC-010)
+        if (PaiementEntrant::where('reference_externe', $data['reference_externe'])->exists()) {
+            return ['success' => false, 'message' => 'Une transaction ayant cette référence existe déjà.'];
+        }
+
         DB::beginTransaction();
         $paiement = null;
         try {
-            // [$user, $compteMobileMoney, ] = $this->identifierUtilisateur($data);
-            // Verifier la reference externe de la transaction
-            if(PaiementEntrant::where('reference_externe', $data['reference_externe'])->exists() ){
-                return [
-                    'success'    => false,
-                    'message'    => 'Une transaction ayant cette référence existe déjà.'
-                ];
-            }
-
             [$user, $compteMobileMoney, $operateurSource] = $this->identifierUtilisateur($data);
 
             // Vérifier que le service opérateur est activé dans les paramètres globaux
@@ -65,7 +61,7 @@ class PaiementService
             ]);
 
             $config      = $this->chargerConfig($user);
-            $montantBrut = (float) $data['montant_brut'];
+            $montantBrut = (string) $data['montant_brut'];
             $repartition = $this->calculerRepartition($montantBrut, $config);
 
             // Opération principale (racine de toutes les sous-opérations)
@@ -97,6 +93,16 @@ class PaiementService
                 'repartition'=> $this->formaterRepartition($repartition),
             ];
 
+        } catch (\Illuminate\Database\QueryException $qe) {
+            DB::rollBack();
+            if ($paiement?->exists) {
+                $paiement->update(['statut' => 'ECHEC']);
+            }
+            // Violation contrainte UNIQUE reference_externe → doublon de paiement (SEC-010)
+            if ($qe->errorInfo[1] === 1062) {
+                return ['success' => false, 'message' => 'Une transaction ayant cette référence existe déjà.'];
+            }
+            throw $qe;
         } catch (\Exception $e) {
             DB::rollBack();
             if ($paiement?->exists) {
@@ -164,35 +170,36 @@ class PaiementService
                 ->orderBy('ordre_priorite')
                 ->get(),
             'declaration_revenu'  => $user->declarationRevenu,
-            'taux_commission'     => (float) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
+            'taux_commission'     => (string) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
         ];
     }
 
-    private function calculerRepartition(float $montantBrut, array $config): array
+    private function calculerRepartition(string $montantBrut, array $config): array
     {
-        // ── Épargne ──────────────────────────────────────────────────────────
-        $montantEpargne  = 0.0;
+        // ── Épargne (BCMath — SEC-004) ────────────────────────────────────────
+        $montantEpargne  = '0.00';
         $objectifEpargne = $config['objectif_epargne'];
 
         if ($objectifEpargne?->type_calcul && $objectifEpargne?->valeur) {
             $candidat = $objectifEpargne->type_calcul === 'FIXE'
-                ? (float) $objectifEpargne->valeur
-                : round($montantBrut * ((float) $objectifEpargne->valeur / 100), 2);
+                ? (string) $objectifEpargne->valeur
+                : bcmul($montantBrut, bcdiv((string) $objectifEpargne->valeur, '100', 4), 2);
 
             // Ne pas dépasser le montant restant à épargner
-            $resteAEpargner = max(0.0, (float) $objectifEpargne->montant_cible - (float) $objectifEpargne->montant_epargne);
-            $montantEpargne = min($candidat, $resteAEpargner);
+            $resteAEpargner = bcsub((string) $objectifEpargne->montant_cible, (string) $objectifEpargne->montant_epargne, 2);
+            $resteAEpargner = bccomp($resteAEpargner, '0.00', 2) > 0 ? $resteAEpargner : '0.00';
+            $montantEpargne = bccomp($candidat, $resteAEpargner, 2) <= 0 ? $candidat : $resteAEpargner;
         }
 
         // ── Commission plateforme ─────────────────────────────────────────────
-        $commission = round($montantBrut * ($config['taux_commission'] / 100), 2);
+        $commission = bcmul($montantBrut, bcdiv($config['taux_commission'], '100', 4), 2);
 
         // ── Cotisations (par ordre de priorité) ──────────────────────────────
         $cotisations = [];
         foreach ($config['regles_prelevements'] as $regle) {
             $montantCot = $regle->type_calcul === 'FIXE'
-                ? (float) $regle->valeur
-                : round($montantBrut * ((float) $regle->valeur / 100), 2);
+                ? (string) $regle->valeur
+                : bcmul($montantBrut, bcdiv((string) $regle->valeur, '100', 4), 2);
 
             $cotisations[] = [
                 'type_cotisation'    => $regle->type_cotisation,
@@ -201,8 +208,13 @@ class PaiementService
             ];
         }
 
-        $totalCotisations = (float) array_sum(array_column($cotisations, 'montant'));
-        $montantNet       = max(0.0, $montantBrut - $montantEpargne - $totalCotisations - $commission);
+        $totalCotisations = array_reduce(
+            $cotisations,
+            fn ($carry, $cot) => bcadd($carry, (string) $cot['montant'], 2),
+            '0.00'
+        );
+        $tmp        = bcsub(bcsub(bcsub($montantBrut, $montantEpargne, 2), $totalCotisations, 2), $commission, 2);
+        $montantNet = bccomp($tmp, '0.00', 2) > 0 ? $tmp : '0.00';
 
         return [
             'montant_brut'      => $montantBrut,
@@ -240,11 +252,11 @@ class PaiementService
                 'libelle'             => 'Épargne automatique',
             ]);
 
-            $nouveauMontant = (float) $objectif->montant_epargne + $repartition['epargne'];
+            $nouveauMontant = bcadd((string) $objectif->montant_epargne, (string) $repartition['epargne'], 2);
             $miseAJour = ['montant_epargne' => $nouveauMontant];
 
             // Suspension automatique si objectif atteint
-            if ($nouveauMontant >= (float) $objectif->montant_cible) {
+            if (bccomp($nouveauMontant, (string) $objectif->montant_cible, 2) >= 0) {
                 $miseAJour['est_actif'] = false;
             }
             $objectif->update($miseAJour);
@@ -347,8 +359,8 @@ class PaiementService
                 );
 
                 // Objectif d'épargne atteint ?
-                $totalEpargne = (float) $objectif->montant_epargne + $repartition['epargne'];
-                $objectifAtteint = $totalEpargne >= (float) $objectif->montant_cible;
+                $totalEpargne    = bcadd((string) $objectif->montant_epargne, (string) $repartition['epargne'], 2);
+                $objectifAtteint = bccomp($totalEpargne, (string) $objectif->montant_cible, 2) >= 0;
                 if ($objectifAtteint) {
                     $this->notificationService->notifierObjectifEpargneAtteint($user, $objectif->libelle);
                 }

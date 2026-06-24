@@ -1,36 +1,86 @@
-{{-- resources/views/emails/otp.blade.php --}}
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 30px; }
-        .container { background: #fff; padding: 30px; border-radius: 8px; max-width: 500px; margin: auto; }
-        .code { font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #2d3748; 
-                background: #f7fafc; border: 1px solid #e2e8f0; padding: 16px 24px; 
-                border-radius: 6px; text-align: center; margin: 24px 0; }
-        .footer { color: #718096; font-size: 13px; margin-top: 24px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Vérification de votre identité</h2>
-        <p>Bonjour,</p>
-        <p>Veuillez utiliser le code ci-dessous pour terminer votre authentification </p>
+@extends('emails.layouts.base')
 
-        <div class="code">{{ $code }}</div>
+@section('title', 'Code de vérification — ' . $branding['nom_plateforme'])
 
-        <p><strong>Validité du code :</strong> 10 minutes</p>
+@section('header-subtitle')
+    <p class="header-sub">Authentification à deux facteurs</p>
+@endsection
 
-        <div class="footer">
-            <p><strong>Sécurité :</strong></p>
-            <ul>
-                <li>Ne partagez jamais ce code avec quiconque</li>
-                <li>Notre équipe ne vous demandera jamais ce code par téléphone</li>
-                <li>Si vous n'avez pas demandé ce code, ignorez ce message</li>
-            </ul>
-            <p>Merci,<br>{{ config('app.name') }}</p>
-        </div>
+@push('styles')
+.otp-intro {
+    font-size: 14px;
+    color: #555555;
+    line-height: 1.7;
+    margin-bottom: 24px;
+}
+.otp-code-box {
+    background: #f8f9ff;
+    border: 1px solid #e0e7ff;
+    border-radius: 10px;
+    padding: 24px 20px;
+    text-align: center;
+    margin: 24px 0;
+}
+.otp-code-box .label {
+    font-size: 11px;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+}
+.otp-code {
+    font-family: 'Courier New', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 10px;
+    color: #1a3a5c;
+}
+.otp-validity {
+    font-size: 13px;
+    color: #555555;
+    text-align: center;
+    margin-bottom: 24px;
+}
+.otp-validity strong {
+    color: #2563eb;
+}
+.security-list {
+    font-size: 13px;
+    color: #555555;
+    line-height: 1.8;
+    padding-left: 18px;
+    margin-top: 8px;
+}
+.security-list li {
+    margin-bottom: 4px;
+}
+@endpush
+
+@section('content')
+
+    <p class="otp-intro">
+        Bonjour,<br><br>
+        Vous avez demandé un code de vérification pour sécuriser votre connexion à
+        <strong>{{ $branding['nom_plateforme'] }}</strong>.
+        Veuillez utiliser le code ci-dessous pour terminer votre authentification.
+    </p>
+
+    <div class="otp-code-box">
+        <div class="label">Votre code de vérification</div>
+        <div class="otp-code">{{ $code }}</div>
     </div>
-</body>
-</html>
+
+    <p class="otp-validity">
+        Ce code est valable pendant <strong>10 minutes</strong>.
+    </p>
+
+    <div class="section-title">Consignes de sécurité</div>
+    <div class="warning-box">
+        <ul class="security-list">
+            <li>Ne partagez jamais ce code avec quiconque, même un conseiller.</li>
+            <li>Notre équipe ne vous demandera jamais ce code par téléphone ou email.</li>
+            <li>Si vous n'avez pas demandé ce code, ignorez ce message et sécurisez votre compte.</li>
+        </ul>
+    </div>
+
+@endsection

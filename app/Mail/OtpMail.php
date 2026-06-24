@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\EmailBrandingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -26,8 +27,10 @@ class OtpMail extends Mailable implements ShouldQueue
      */
     public function envelope(): Envelope
     {
+        $nom = EmailBrandingService::get()['nom_plateforme'];
+
         return new Envelope(
-            subject: 'Ebeb Finance: Votre code OTP de vérification',
+            subject: "{$nom} : Votre code de vérification",
         );
     }
 

@@ -23,9 +23,8 @@ class VerificationOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'telephone' => 'required|min:10|max:14|exists:users,telephone',
-            'code_otp' => 'required|string|size:6'
-            // |exists:session_otps,code_otp'
+            'telephone' => ['required', 'string', 'min:10', 'max:14', 'regex:/^[0-9+]+$/'],
+            'code_otp'  => 'required|string|size:6',
         ];
     }
 
@@ -33,9 +32,9 @@ class VerificationOtpRequest extends FormRequest
     {
         return [
             'telephone.required' => "Le numéro de téléphone est obligatoire.",
-            'telephone.min'     => "Le numéro de téléphone doit contenir au moins :min chiffres.",
-            'telephone.max'     => "Le numéro de téléphone doit contenir au maximum :max chiffres.",
-            'telephone.exists'   => "Ce numéro de téléphone est invalide ou n\'existe pas.",
+            'telephone.min'   => "Le numéro de téléphone doit contenir au moins :min chiffres.",
+            'telephone.max'   => "Le numéro de téléphone doit contenir au maximum :max chiffres.",
+            'telephone.regex' => "Le format du numéro de téléphone est invalide.",
 
             'code_otp.required' => "Le code OTP est obligatoire pour vérifier le numéro de téléphone.",
             'code_otp.size'     => "Le code OTP doit contenir exactement :size chiffres.",

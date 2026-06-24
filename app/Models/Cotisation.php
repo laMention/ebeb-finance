@@ -17,9 +17,9 @@ class Cotisation extends Model
     protected function casts(): array
     {
         return [
-            'montant_verse'    => 'float',
-            'montant_objectif' => 'float',
-            'montant_restant'  => 'float',
+            'montant_verse'    => 'decimal:2',
+            'montant_objectif' => 'decimal:2',
+            'montant_restant'  => 'decimal:2',
             'date_debut'       => 'date',
             'date_fin'         => 'date',
             'date_paiement'    => 'datetime',

@@ -27,8 +27,8 @@ class SaveParametreGeneralRequest extends FormRequest
             'telephone_contact'  => ['nullable', 'string', 'max:30'],
             'copyright'          => ['nullable', 'string', 'max:200'],
             // Identité visuelle (fichiers)
-            'logo_principal'     => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
-            'logo_favicon'       => ['nullable', 'file', 'mimes:png,jpg,jpeg,ico,svg', 'max:512'],
+            'logo_principal'     => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'logo_favicon'       => ['nullable', 'file', 'mimes:png,jpg,jpeg,ico', 'max:512'],
             'logo_email'         => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:1024'],
             'icone_application'  => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:1024'],
             // Réseaux sociaux
@@ -60,11 +60,11 @@ class SaveParametreGeneralRequest extends FormRequest
             'copyright.max'           => 'Le copyright ne peut pas dépasser 200 caractères.',
 
             'logo_principal.file'     => 'Le logo principal doit être un fichier.',
-            'logo_principal.mimes'    => 'Le logo principal doit être au format PNG, JPG, JPEG, SVG ou WebP.',
+            'logo_principal.mimes'    => 'Le logo principal doit être au format PNG, JPG, JPEG ou WebP.',
             'logo_principal.max'      => 'Le logo principal ne peut pas dépasser 2 Mo.',
 
             'logo_favicon.file'       => 'Le favicon doit être un fichier.',
-            'logo_favicon.mimes'      => 'Le favicon doit être au format PNG, JPG, JPEG, ICO ou SVG.',
+            'logo_favicon.mimes'      => 'Le favicon doit être au format PNG, JPG, JPEG ou ICO.',
             'logo_favicon.max'        => 'Le favicon ne peut pas dépasser 512 Ko.',
 
             'logo_email.file'         => "Le logo email doit être un fichier.",

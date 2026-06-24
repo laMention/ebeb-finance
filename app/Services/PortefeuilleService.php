@@ -17,7 +17,8 @@ class PortefeuilleService
         $mois  = now()->month;
         $annee = now()->year;
 
-        $portefeuille = PortefeuilleEpargne::firstOrCreate(
+        // firstOrCreate puis lockForUpdate pour éviter les doublons en concurrence (SEC-017)
+        PortefeuilleEpargne::firstOrCreate(
             ['user_id' => $user->id, 'mois_reference' => $mois, 'annee_reference' => $annee],
             [
                 'total_epargne'            => 0,
@@ -28,6 +29,12 @@ class PortefeuilleService
                 'montant_net_total'        => 0,
             ]
         );
+
+        $portefeuille = PortefeuilleEpargne::where([
+            'user_id'         => $user->id,
+            'mois_reference'  => $mois,
+            'annee_reference' => $annee,
+        ])->lockForUpdate()->firstOrFail();
 
         $portefeuille->increment('total_recu_brut',          $repartition['montant_brut']);
         $portefeuille->increment('total_epargne',            $repartition['epargne']);

@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\User;
+use App\Services\EmailBrandingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -34,8 +35,9 @@ class NotificationMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $nom = EmailBrandingService::get()['nom_plateforme'];
         return new Envelope(
-            subject: $this->contenu['sujet'] ?? 'ALERTE INFO EBEB FINANCE',
+            subject: $this->contenu['sujet'] ?? 'ALERTE INFO '. $nom,
         );
     }
 
@@ -49,7 +51,7 @@ class NotificationMail extends Mailable
             with: [
                 'user' => $this->user,
                 'type' => $this->type,
-                'titre' => $this->contenu['titre'] ?? 'ALERTE INFO EBEB FINANCE',
+                'titre' => $this->contenu['titre'] ?? 'ALERTE INFO ',
                 'message' => $this->contenu['message'] ?? '',
                 'contenu' => $this->contenu
             ]

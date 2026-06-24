@@ -327,35 +327,12 @@ class DocumentService
                 }
             }
 
-            $statutCompte = null;
-
-            
-            if ($tousChampsRemplis) {
-                $documentKYC->update([
-                    'statut'       => 'VALIDE',
-                    'valide_par'   => auth()->id(),
-                    'validated_at' => Carbon::now(),
-                ]);
-
-              
-                if ($documentKYC->user_id) {
-                    $user = User::find($documentKYC->user_id);
-
-                    if ($user) {
-                        $user->update([
-                            'statut' => 'ACTIF',
-                            'date_activation' => $this->mettreAjourDateActivationCompteUser($user)
-                        ]);
-                        $statutCompte = 'ACTIF';
-                    }
-                }
-            }
-
             return [
-                'success'       => true,
-                'message'       => 'Document mis à jour avec succès',
-                'document'      => $documentKYC->fresh(),
-                'statut_compte' => $statutCompte,
+                'success'  => true,
+                'message'  => $tousChampsRemplis
+                    ? 'Document mis à jour avec succès. Il est en attente de validation par un administrateur.'
+                    : 'Document mis à jour avec succès.',
+                'document' => $documentKYC->fresh(),
             ];
 
         } catch (\Exception $e) {
@@ -475,34 +452,13 @@ class DocumentService
                 }
             }
 
-            $statutCompte = null;
-
-            if ($tousChampsRemplis) {
-                $documentKYC->update([
-                    'statut'       => 'VALIDE',
-                    'valide_par'   => auth()->id(),
-                    'validated_at' => Carbon::now(),
-                ]);
-
-                if ($documentKYC->user_id) {
-                    $user = User::find($documentKYC->user_id);
-                    
-                    if ($user) {
-                        $user->update([
-                            'statut' => 'ACTIF',
-                            'date_activation' => $this->mettreAjourDateActivationCompteUser($user)
-                        ]);
-                        $statutCompte = 'ACTIF';
-                    }
-                }
-            }
-
             return [
-                'success'       => true,
-                'message'       => 'Document ajouté avec succès',
-                'document'      => $documentKYC->fresh(),
-                'statut_compte' => $statutCompte,
-                'user_id'       => $documentKYC->user_id,
+                'success'  => true,
+                'message'  => $tousChampsRemplis
+                    ? 'Document ajouté avec succès. Il est en attente de validation par un administrateur.'
+                    : 'Document ajouté avec succès.',
+                'document' => $documentKYC->fresh(),
+                'user_id'  => $documentKYC->user_id,
             ];
 
         } catch (\Exception $e) {
