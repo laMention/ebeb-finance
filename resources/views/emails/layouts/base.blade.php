@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>@yield('title', $branding['nom_plateforme'])</title>
+    <title>@yield('title', info_public_plateforme()['nom_plateforme'])</title>
     <style>
         /* ── Reset ── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -126,12 +126,12 @@
 
     {{-- ── En-tête avec logo ou nom de la plateforme ── --}}
     <div class="header">
-        @if($branding['logo_url'])
-            <img src="{{ $branding['logo_url'] }}"
-                 alt="{{ $branding['nom_plateforme'] }}"
+        @if(isset(info_public_plateforme()['logo_principal_url']))
+            <img src="{{ info_public_plateforme()['logo_principal_url'] }}"
+                 alt="{{ info_public_plateforme()['nom_plateforme'] }}"
                  class="header-logo">
         @else
-            <h1 class="header-title">{{ $branding['nom_plateforme'] ?? "E-BEB FINANCE" }}</h1>
+            <h1 class="header-title">{{ info_public_plateforme()['nom_plateforme'] ?? "E-BEB FINANCE" }}</h1>
         @endif
         @yield('header-subtitle')
     </div>
@@ -143,21 +143,21 @@
 
     {{-- ── Pied de page avec informations de la plateforme ── --}}
     <div class="footer">
-        @if($branding['slogan'])
-            <p class="footer-slogan">{{ $branding['slogan'] }}</p>
+        @if(info_public_plateforme()['slogan'])
+            <p class="footer-slogan">{{ info_public_plateforme()['slogan'] }}</p>
         @endif
-        @if($branding['site_web'])
+        @if(info_public_plateforme()['site_web'])
             <p>
-                <a href="{{ $branding['site_web'] }}" class="footer-link" target="_blank">
-                    {{ $branding['site_web'] }}
+                <a href="{{ info_public_plateforme()['site_web'] }}" class="footer-link" target="_blank">
+                    {{ info_public_plateforme()['site_web'] }}
                 </a>
             </p>
         @endif
-        @if($branding['slogan'] || $branding['site_web'])
+        @if(info_public_plateforme()['slogan'] || info_public_plateforme()['site_web'])
             <hr class="footer-separator">
         @endif
         <p>Cet email a été envoyé automatiquement — merci de ne pas y répondre.</p>
-        <p>{{ $branding['copyright'] }}</p>
+        <p>{{ info_public_plateforme()['copyright'] }}</p>
     </div>
 
 </div>

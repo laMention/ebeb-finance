@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ParametreGeneral;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 //  Methode pour mettre en majuscule
@@ -122,6 +123,29 @@ if (!function_exists('generer_reference_user')) {
 
         return $reference;
 
+    }
+
+}
+
+// Recuperation des informations publiques de la plateforme
+if (!function_exists('info_public_plateforme')) {
+    function info_public_plateforme()
+    {
+        $p = ParametreGeneral::first();
+        
+        return [
+            'logo_principal_url' => $p->logo_principal_url ?? "",
+            'logo_favicon_url' => $p->logo_favicon_url ?? "",
+            'logo_email_url' => $p->logo_email_url ?? "",
+            'icone_application_url' => $p->icone_application_url ?? "",
+            'seo_image_og_url' => $p->seo_image_og_url ?? "",
+            'nom_plateforme' => $p->nom_plateforme ?? "",
+            'slogan' => $p->slogan ?? "",
+            'email_contact' => $p->email_contact ?? "",
+            'telephone_contact' => $p->telephone_contact ?? "",
+            'copyright' => $p->copyright ?? "",
+            'site_web' => $p->site_web ?? "",
+        ];
     }
 
 }
