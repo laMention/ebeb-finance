@@ -14,7 +14,7 @@ class StoreAdminRequest extends FormRequest
             'nom'           => ['required', 'string', 'max:100'],
             'prenom'        => ['nullable', 'string', 'max:100'],
             'email'         => ['required', 'email', 'max:150', 'unique:administrateurs,email'],
-            'password'      => ['required', 'string', 'min:8'],
+            'password'      => ['required', 'string', 'min:12', 'regex:/[A-Z]/', 'regex:/[a-z]/', 'regex:/[0-9]/', 'regex:/[^A-Za-z0-9]/'],
             'telephone'     => ['nullable', 'string', 'max:20', 'unique:administrateurs,telephone'],
             'ville'         => ['nullable', 'string', 'max:100'],
             'adresse'       => ['nullable', 'string', 'max:255'],
@@ -28,7 +28,8 @@ class StoreAdminRequest extends FormRequest
         return [
             'email.unique'     => 'Un administrateur avec cet email existe déjà.',
             'telephone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
-            'password.min'     => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'password.min'     => 'Le mot de passe doit contenir au moins 12 caractères.',
+            'password.regex'   => 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.',
         ];
     }
 }
