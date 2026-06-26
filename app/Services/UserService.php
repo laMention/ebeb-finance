@@ -53,6 +53,8 @@ class UserService
         return ['success' => true];
     }
 
+    
+
     public function deconnexion($user)
     {
         $user->tokens()->delete();

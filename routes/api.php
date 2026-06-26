@@ -106,6 +106,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('/{notification}/lue', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerLue']);
         });
 
+        // Récapitulatif des prélèvements & solde disponible (P36)
+        Route::get('recapitulatif', [\App\Http\Controllers\Apiv1\RecapitulatifController::class, 'index']);
+
     });
 
     
