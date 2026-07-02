@@ -6,6 +6,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -26,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission'=> RoleOrPermissionMiddleware::class,
             'admin.perm'        => \App\Http\Middleware\CheckAdminPermission::class,
             'compte.actif'      => \App\Http\Middleware\VerificationStatutCompteUtilisateurMiddleware::class,
+            'plateforme.actif'  => \App\Http\Middleware\PlatformStatusMiddleware::class,
+            'abilities'         => CheckAbilities::class,
+            'ability'           => CheckForAnyAbility::class,
         ]);
 
         $middleware->web(append: [
