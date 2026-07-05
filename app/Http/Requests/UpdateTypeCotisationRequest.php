@@ -23,10 +23,14 @@ class UpdateTypeCotisationRequest extends FormRequest
         return [
             'libelle'         => ['sometimes', 'string', 'max:255'],
             'code'            => ['sometimes', 'string', 'max:50', Rule::unique('type_cotisations', 'code')->ignore($typeCotisationId)],
-            'categorie'       => ['sometimes', 'string', 'max:100'],
-            'est_obligatoire' => ['sometimes', 'boolean'],
-            'est_actif'       => ['sometimes', 'boolean'],
-            'description'     => ['nullable', 'string'],
+            'categorie'                       => ['sometimes', 'string', 'max:100'],
+            'est_obligatoire'                 => ['sometimes', 'boolean'],
+            'est_actif'                       => ['sometimes', 'boolean'],
+            'default_type_calcul'             => ['sometimes', 'nullable', 'string', 'in:FIXE,POURCENTAGE'],
+            'default_valeur'                  => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'default_est_actif'               => ['sometimes', 'nullable', 'boolean'],
+            'default_date_entree_en_vigueur'  => ['sometimes', 'nullable', 'date'],
+            'description'                     => ['nullable', 'string'],
         ];
     }
 
@@ -45,6 +49,11 @@ class UpdateTypeCotisationRequest extends FormRequest
 
             'est_obligatoire.boolean' => 'Le champ est_obligatoire doit être vrai ou faux.',
             'est_actif.boolean'       => 'Le champ est_actif doit être vrai ou faux.',
+            'default_type_calcul.in'  => 'Le type de calcul par défaut doit être FIXE ou POURCENTAGE.',
+            'default_valeur.numeric'  => 'La valeur par défaut doit être un nombre.',
+            'default_valeur.min'      => 'La valeur par défaut doit être positive.',
+            'default_est_actif.boolean' => 'Le champ default_est_actif doit être vrai ou faux.',
+            'default_date_entree_en_vigueur.date' => 'La date d\'entrée en vigueur doit être une date valide.',
 
             'description.string' => 'La description doit être une chaîne de caractères.',
         ];

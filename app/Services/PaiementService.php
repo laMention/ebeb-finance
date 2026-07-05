@@ -11,6 +11,7 @@ use App\Models\ReglePrelevement;
 use App\Models\TypeCotisation;
 use App\Models\User;
 use App\Services\AlerteGenerator;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -160,17 +161,23 @@ class PaiementService
 
     private function chargerConfig(User $user): array
     {
+        $userRegles = ReglePrelevement::where('user_id', $user->id)
+            ->where('est_actif', true)
+            ->with('type_cotisation')
+            ->orderBy('ordre_priorite')
+            ->get();
+
+        $typesActifs = TypeCotisation::where('est_actif', true)
+            ->get();
+
         return [
-            'objectif_epargne'    => ObjectifEpargne::where('user_id', $user->id)
+            'objectif_epargne'     => ObjectifEpargne::where('user_id', $user->id)
                 ->where('est_actif', true)
                 ->first(),
-            'regles_prelevements' => ReglePrelevement::where('user_id', $user->id)
-                ->where('est_actif', true)
-                ->with('type_cotisation')
-                ->orderBy('ordre_priorite')
-                ->get(),
-            'declaration_revenu'  => $user->declarationRevenu,
-            'taux_commission'     => (string) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
+            'regles_prelevements'  => $userRegles,
+            'type_cotisations'     => $typesActifs,
+            'declaration_revenu'   => $user->declarationRevenu,
+            'taux_commission'      => (string) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
         ];
     }
 
@@ -194,9 +201,12 @@ class PaiementService
         // ── Commission plateforme ─────────────────────────────────────────────
         $commission = bcmul($montantBrut, bcdiv($config['taux_commission'], '100', 4), 2);
 
-        // ── Cotisations (par ordre de priorité) ──────────────────────────────
+        // ── Cotisations (par ordre de priorité utilisateur, puis fallback par défaut) ──
         $cotisations = [];
+        $typeIdsAvecRegleUtilisateur = [];
+
         foreach ($config['regles_prelevements'] as $regle) {
+            $typeIdsAvecRegleUtilisateur[] = $regle->type_cotisation_id;
             $montantCot = $regle->type_calcul === 'FIXE'
                 ? (string) $regle->valeur
                 : bcmul($montantBrut, bcdiv((string) $regle->valeur, '100', 4), 2);
@@ -204,6 +214,38 @@ class PaiementService
             $cotisations[] = [
                 'type_cotisation'    => $regle->type_cotisation,
                 'type_cotisation_id' => $regle->type_cotisation_id,
+                'montant'            => $montantCot,
+            ];
+        }
+
+        foreach ($config['type_cotisations'] as $typeCotisation) {
+            if (in_array($typeCotisation->id, $typeIdsAvecRegleUtilisateur, true)) {
+                continue;
+            }
+
+            if (! $typeCotisation->default_est_actif) {
+                continue;
+            }
+
+            if (! $typeCotisation->default_type_calcul || $typeCotisation->default_valeur === null) {
+                continue;
+            }
+
+            if ($typeCotisation->default_date_entree_en_vigueur && Carbon::today()->lt($typeCotisation->default_date_entree_en_vigueur)) {
+                continue;
+            }
+
+            $montantCot = $typeCotisation->default_type_calcul === 'FIXE'
+                ? (string) $typeCotisation->default_valeur
+                : bcmul($montantBrut, bcdiv((string) $typeCotisation->default_valeur, '100', 4), 2);
+
+            if (bccomp($montantCot, '0.00', 2) <= 0) {
+                continue;
+            }
+
+            $cotisations[] = [
+                'type_cotisation'    => $typeCotisation,
+                'type_cotisation_id' => $typeCotisation->id,
                 'montant'            => $montantCot,
             ];
         }

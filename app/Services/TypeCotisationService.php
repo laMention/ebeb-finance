@@ -100,12 +100,16 @@ class TypeCotisationService
             }
 
             $type = TypeCotisation::create([
-                'libelle'        => mettre_en_majuscule($data['libelle']),
-                'code'           => $code,
-                'categorie'      => mettre_en_majuscule($data['categorie']),
-                'est_obligatoire'=> $data['est_obligatoire'] ?? false,
-                'est_actif'      => $data['est_actif'] ?? true,
-                'description'    => $data['description'] ?? null,
+                'libelle'                        => mettre_en_majuscule($data['libelle']),
+                'code'                           => $code,
+                'categorie'                      => mettre_en_majuscule($data['categorie']),
+                'est_obligatoire'                => $data['est_obligatoire'] ?? false,
+                'est_actif'                      => $data['est_actif'] ?? true,
+                'description'                    => $data['description'] ?? null,
+                'default_type_calcul'            => isset($data['default_type_calcul']) ? mettre_en_majuscule($data['default_type_calcul']) : null,
+                'default_valeur'                 => array_key_exists('default_valeur', $data) ? $data['default_valeur'] : null,
+                'default_est_actif'              => $data['default_est_actif'] ?? false,
+                'default_date_entree_en_vigueur' => $data['default_date_entree_en_vigueur'] ?? null,
             ]);
 
             \Log::info('Type de cotisation créé', ['id' => $type->id, 'code' => $type->code]);
@@ -135,6 +139,20 @@ class TypeCotisationService
     {
         try {
             $champsAMettreAJour = [];
+            if (array_key_exists('default_type_calcul', $data)) {
+                $champsAMettreAJour['default_type_calcul'] = $data['default_type_calcul'] !== null
+                    ? mettre_en_majuscule($data['default_type_calcul'])
+                    : null;
+            }
+            if (array_key_exists('default_valeur', $data)) {
+                $champsAMettreAJour['default_valeur'] = $data['default_valeur'];
+            }
+            if (array_key_exists('default_est_actif', $data)) {
+                $champsAMettreAJour['default_est_actif'] = $data['default_est_actif'];
+            }
+            if (array_key_exists('default_date_entree_en_vigueur', $data)) {
+                $champsAMettreAJour['default_date_entree_en_vigueur'] = $data['default_date_entree_en_vigueur'];
+            }
 
             if (array_key_exists('libelle', $data)) {
                 $champsAMettreAJour['libelle'] = mettre_en_majuscule($data['libelle']);
