@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Administrateur;
+use App\Models\Cotisation;
 use App\Models\Operation;
 use App\Models\PartenairesFinancier;
 use App\Models\Reversement;
@@ -13,6 +14,11 @@ use Illuminate\Support\Str;
 
 class ReversementAdminService
 {
+    public function __construct(
+        private readonly PartenaireTransmissionService $transmissionService,
+        private readonly CotisationService $cotisationService,
+    ) {}
+
     // -------------------------------------------------------------------------
     // Mapping partenaire.type → types d'opérations éligibles
     // -------------------------------------------------------------------------
@@ -330,10 +336,25 @@ class ReversementAdminService
     {
         try {
             $partenaire = PartenairesFinancier::findOrFail($data['partenaire_id']);
-            $types      = $this->typesOperations($partenaire->type);
+
+            if (!$partenaire->est_actif) {
+                return ['success' => false, 'message' => 'Ce partenaire est inactif. Les reversements ne peuvent être effectués que vers des partenaires actifs.', 'data' => null];
+            }
+
+            $verification = $this->transmissionService->verifierConfiguration($partenaire);
+            if (!$verification['ok']) {
+                return [
+                    'success' => false,
+                    'message' => "La configuration du partenaire est incomplète : " . implode(' ', $verification['erreurs']),
+                    'data'    => ['erreurs' => $verification['erreurs']],
+                ];
+            }
+
+            $types = $this->typesOperations($partenaire->type);
 
             // Trouver les opérations éligibles
-            $query = Operation::whereIn('type_operation', $types)
+            $query = Operation::with(['user', 'type_cotisation'])
+                ->whereIn('type_operation', $types)
                 ->where('statut', 'SUCCES')
                 ->whereNotNull('operation_parent_id');
 
@@ -372,17 +393,68 @@ class ReversementAdminService
                     'periode_fin'              => $data['periode_fin'] ?? null,
                 ]);
 
+                // attach() insère directement dans la table pivot sans passer par les hooks
+                // Eloquent (HasUuids) : l'id doit être généré manuellement ici.
                 $pivots = $operations->mapWithKeys(fn($op) => [
-                    $op->id => ['montant' => $op->montant],
+                    $op->id => ['id' => (string) Str::uuid(), 'montant' => $op->montant],
                 ])->toArray();
 
                 $reversement->operations()->attach($pivots);
+
+                // Marquer les cotisations correspondantes comme reversées (dédup / reporting)
+                // et resynchroniser leur objectif CNPS avec la déclaration de revenu courante
+                // avant transmission au partenaire (ne jamais transmettre un objectif obsolète).
+                foreach ($operations as $op) {
+                    if (!$op->user_id || !$op->type_cotisation_id || !$op->date_operation) {
+                        continue;
+                    }
+
+                    $cotisations = Cotisation::where('user_id', $op->user_id)
+                        ->where('type_cotisation_id', $op->type_cotisation_id)
+                        ->where('mois', $op->date_operation->month)
+                        ->where('annee', $op->date_operation->year)
+                        ->get();
+
+                    foreach ($cotisations as $cotisation) {
+                        $cotisation->update([
+                            'reverse'        => true,
+                            'reverse_le'     => now(),
+                            'reversement_id' => $reversement->id,
+                        ]);
+
+                        if ($op->type_operation === 'COTISATION_CNPS') {
+                            $this->cotisationService->resynchroniserObjectif($cotisation);
+                        }
+                    }
+                }
             });
+
+            // Transmission au partenaire (synchrone) — un échec n'invalide pas le reversement déjà verrouillé.
+            $this->transmissionService->transmettre($reversement, $partenaire, $operations);
 
             return [
                 'success' => true,
-                'data'    => ['reversement' => $this->formatItem($reversement->load('partenaire'))],
+                'data'    => ['reversement' => $this->formatItem($reversement->fresh()->load('partenaire'))],
                 'message' => 'Reversement créé avec succès',
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'data' => null];
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Retransmettre un reversement au partenaire (après échec)
+    // -------------------------------------------------------------------------
+
+    public function retransmettre(Reversement $reversement): array
+    {
+        try {
+            $resultat = $this->transmissionService->retransmettre($reversement);
+
+            return [
+                'success' => $resultat['success'],
+                'message' => $resultat['message'],
+                'data'    => ['reversement' => $this->formatItem($reversement->fresh()->load('partenaire'))],
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'data' => null];
@@ -430,9 +502,11 @@ class ReversementAdminService
     private function formatItem(Reversement $r): array
     {
         return [
-            'id'               => $r->id,
-            'reference'        => $r->reference,
-            'statut'           => $r->statut,
+            'id'                   => $r->id,
+            'reference'            => $r->reference,
+            'statut'               => $r->statut,
+            'transmission_statut'  => $r->transmission_statut,
+            'transmission_date'    => $r->transmission_date?->format('Y-m-d H:i'),
             'montant_total'    => $r->montant_total,
             'date_reversement' => $r->date_reversement?->format('Y-m-d H:i'),
             'date_execution'   => $r->date_execution?->format('Y-m-d H:i'),

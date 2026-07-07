@@ -49,9 +49,16 @@ class PartenaireFinancierService
     public function creer(array $data): PartenairesFinancier
     {
         return PartenairesFinancier::create([
-            'nom'  => $data['nom'],
-            'code' => strtoupper(trim($data['code'])),
-            'type' => $data['type'],
+            'nom'                       => $data['nom'],
+            'code'                      => strtoupper(trim($data['code'])),
+            'type'                      => $data['type'],
+            'est_actif'                 => $data['est_actif'] ?? true,
+            'url_api_reversement'       => $data['url_api_reversement'] ?? null,
+            'url_api_consultation'      => $data['url_api_consultation'] ?? null,
+            'url_webhook'               => $data['url_webhook'] ?? null,
+            'methode_authentification'  => $data['methode_authentification'] ?? null,
+            'identifiants_api'          => $data['identifiants_api'] ?? null,
+            'format_echange'            => $data['format_echange'] ?? 'JSON',
         ]);
     }
 
@@ -62,9 +69,18 @@ class PartenaireFinancierService
     {
         $champs = [];
 
-        if (isset($data['nom']))  $champs['nom']  = $data['nom'];
-        if (isset($data['code'])) $champs['code'] = strtoupper(trim($data['code']));
-        if (isset($data['type'])) $champs['type'] = $data['type'];
+        foreach ([
+            'nom', 'type', 'est_actif', 'url_api_reversement', 'url_api_consultation',
+            'url_webhook', 'methode_authentification', 'identifiants_api', 'format_echange',
+        ] as $champ) {
+            if (array_key_exists($champ, $data)) {
+                $champs[$champ] = $data[$champ];
+            }
+        }
+
+        if (isset($data['code'])) {
+            $champs['code'] = strtoupper(trim($data['code']));
+        }
 
         if (!empty($champs)) {
             $partenaire->update($champs);

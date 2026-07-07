@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Cotisation;
+use App\Models\DeclarationRevenu;
 use App\Models\ObjectifEpargne;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -11,8 +12,10 @@ class AdminUserService
 {
     protected NotificationService $notificationService;
 
-    public function __construct(NotificationService $notificationService)
-    {
+    public function __construct(
+        NotificationService $notificationService,
+        private readonly CotisationService $cotisationService,
+    ) {
         $this->notificationService = $notificationService;
     }
 
@@ -215,6 +218,28 @@ class AdminUserService
         $user->update($champs);
 
         return ['success' => true, 'message' => 'Informations mises à jour avec succès.', 'user' => $user->fresh()];
+    }
+
+    /**
+     * Met à jour (ou crée) la déclaration de revenu d'un utilisateur — source de vérité des
+     * objectifs de cotisation CNPS/AMU. Resynchronise immédiatement l'objectif de la Cotisation
+     * du mois en cours (les mois passés restent un historique figé).
+     */
+    public function mettreAJourDeclarationRevenu(User $user, array $data): array
+    {
+        $declaration = DeclarationRevenu::updateOrCreate(['user_id' => $user->id], $data);
+
+        $cotisationCnpsCourante = Cotisation::where('user_id', $user->id)
+            ->where('mois', now()->month)
+            ->where('annee', now()->year)
+            ->whereHas('typeCotisation', fn($q) => $q->where('code', 'like', '%CNPS%')->orWhere('categorie', 'like', '%CNPS%'))
+            ->first();
+
+        if ($cotisationCnpsCourante) {
+            $this->cotisationService->resynchroniserObjectif($cotisationCnpsCourante);
+        }
+
+        return ['success' => true, 'message' => 'Déclaration de revenu mise à jour avec succès.', 'declaration' => $declaration];
     }
 
     /**

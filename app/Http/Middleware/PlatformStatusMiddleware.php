@@ -23,20 +23,25 @@ class PlatformStatusMiddleware
     {
         $etat = $this->service->getStatutEffectif();
 
-        if ($etat['statut'] === 'MAINTENANCE') {
-            return response()->json([
-                'success' => false,
-                'code'    => 'PLATFORM_MAINTENANCE',
-                'message' => $etat['message'] ?? 'La plateforme est actuellement en maintenance. Veuillez réessayer ultérieurement.',
-            ], Response::HTTP_SERVICE_UNAVAILABLE);
-        }
+        if (in_array($etat['statut'], ['MAINTENANCE', 'DESACTIVEE'], true)) {
+            $code = $etat['statut'] === 'DESACTIVEE' ? 'PLATFORM_DISABLED' : 'PLATFORM_MAINTENANCE';
+            $message = $etat['message'] ?? ($etat['statut'] === 'DESACTIVEE'
+                ? 'Vous ne pouvez pas accéder à la plateforme pour le moment. La plateforme est temporairement indisponible.'
+                : 'La plateforme est actuellement en maintenance. Veuillez réessayer ultérieurement.');
 
-        if ($etat['statut'] === 'DESACTIVEE') {
-            return response()->json([
-                'success' => false,
-                'code'    => 'PLATFORM_DISABLED',
-                'message' => $etat['message'] ?? 'Vous ne pouvez pas effectuer cette action pour le moment. La plateforme est temporairement indisponible.',
-            ], Response::HTTP_SERVICE_UNAVAILABLE);
+            if ($request->expectsJson() || $request->wantsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'code'    => $code,
+                    'message' => $message,
+                ], Response::HTTP_SERVICE_UNAVAILABLE);
+            }
+
+            return response()->view(
+                'maintenance.status',
+                ['statut' => $etat['statut'], 'message' => $message],
+                Response::HTTP_SERVICE_UNAVAILABLE,
+            );
         }
 
         return $next($request);

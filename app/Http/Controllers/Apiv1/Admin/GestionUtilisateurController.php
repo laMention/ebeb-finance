@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
+use App\Http\Resources\DeclarationRevenuResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AdminUserService;
@@ -228,6 +229,39 @@ class GestionUtilisateurController extends BaseController
 
             return $this->sendResponse([], $resultat['message']);
 
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Met à jour la déclaration de revenu (source de vérité des objectifs de cotisation CNPS/AMU).
+     * PUT /administration/panel-admin/utilisateurs/{user}/declaration-revenu
+     */
+    public function mettreAJourDeclarationRevenu(User $user, Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'montant_revenu'                            => 'required|numeric|min:0',
+                'montant_cotisation_regime_base'            => 'required|numeric|min:0',
+                'montant_cotisation_regime_complementaire'  => 'required|numeric|min:0',
+                'montant_cotisation_mensuelle'               => 'required|numeric|min:0',
+                'montant_cotisation_trimestrielle'           => 'required|numeric|min:0',
+            ]);
+
+            $avant    = $user->declarationRevenu?->only(array_keys($validated));
+            $resultat = $this->adminUserService->mettreAJourDeclarationRevenu($user, $validated);
+
+            AuditLogger::log('DECLARATION_REVENU.UPDATE', $request->user(), 'declaration_revenus',
+                (string) $resultat['declaration']->id, $avant, $validated);
+
+            return $this->sendResponse(
+                ['declaration' => new DeclarationRevenuResource($resultat['declaration'])],
+                $resultat['message']
+            );
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->sendError('Données invalides.', $e->errors(), 422);
         } catch (\Exception $e) {
             return $this->throw($e);
         }

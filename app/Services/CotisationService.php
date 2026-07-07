@@ -151,11 +151,14 @@ class CotisationService
         $categorie = strtoupper($type->categorie ?? '');
 
         if (str_contains($code, 'CNPS') || str_contains($categorie, 'CNPS')) {
-            return bcdiv((string) $declaration->montant_cotisation_regime_base, '12', 2);
+            // Objectif mensuel CNPS = montant_cotisation_mensuelle déclaré (source de vérité).
+            // L'objectif annuel (mensuelle × 12) n'est pas stocké : il ressort naturellement
+            // de la somme des 12 objectifs mensuels des Cotisation de l'année.
+            return number_format((float) $declaration->montant_cotisation_mensuelle, 2, '.', '');
         }
 
         if (str_contains($code, 'AMU') || str_contains($categorie, 'AMU')) {
-            return bcdiv((string) $declaration->montant_cotisation_mensuelle, '2', 2);
+            return bcdiv((string) $type->default_valeur, 2);
         }
 
         return '0.00';
@@ -167,6 +170,39 @@ class CotisationService
         if (bccomp($verse,    '0.00', 2) <= 0) return 'NON_A_JOUR';
         if (bccomp($verse, $objectif, 2) >= 0) return 'OBJECTIF_ATTEINT';
         return 'EN_COURS';
+    }
+
+    /**
+     * Recalcule l'objectif et le statut d'une Cotisation à partir de la déclaration de revenu
+     * actuelle de l'utilisateur — appelé après un reversement (avant transmission au partenaire)
+     * et après toute modification d'une DeclarationRevenu, pour ne jamais transmettre/afficher
+     * un objectif obsolète.
+     */
+    public function resynchroniserObjectif(Cotisation $cotisation): Cotisation
+    {
+        if ($cotisation->statut === 'REPORT') {
+            return $cotisation;
+        }
+
+        $type        = $cotisation->typeCotisation ?? TypeCotisation::find($cotisation->type_cotisation_id);
+        $declaration = DeclarationRevenu::where('user_id', $cotisation->user_id)->first();
+
+        if (!$type || !$declaration) {
+            return $cotisation;
+        }
+
+        $objectif = $this->calculerObjectifMensuel($type, $declaration);
+        $verse    = (string) $cotisation->montant_verse;
+        $restant  = bcsub($objectif, $verse, 2);
+        $restant  = bccomp($restant, '0.00', 2) > 0 ? $restant : '0.00';
+
+        $cotisation->update([
+            'montant_objectif' => $objectif,
+            'montant_restant'  => $restant,
+            'statut'           => $this->calculerStatut($verse, $objectif),
+        ]);
+
+        return $cotisation->fresh();
     }
 
     private function marquerObjectifAnnuelAtteint(User $user, string $typeCotisationId, int $annee): void

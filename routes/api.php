@@ -169,6 +169,8 @@ Route::middleware('plateforme.actif')->group(function () {
                     Route::patch('/{user}/reinitialiser-pin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reinitialiserCodePin'])
                         ->middleware('admin.perm:utilisateurs.update');
                     Route::get('/{user}/cotisations', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'cotisations']);
+                    Route::put('/{user}/declaration-revenu', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'mettreAJourDeclarationRevenu'])
+                        ->middleware('admin.perm:utilisateurs.update');
                     Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver'])
                         ->middleware('admin.perm:utilisateurs.delete');
                 });
@@ -184,6 +186,18 @@ Route::middleware('plateforme.actif')->group(function () {
                             ->middleware('admin.perm:partenaires-financiers.update');
                         Route::delete('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'destroy'])
                             ->middleware('admin.perm:partenaires-financiers.delete');
+                        Route::get('/{partenaireFinancier}/tester-configuration', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'testerConfiguration']);
+
+                        // Comptes de destination
+                        Route::prefix('/{partenaireFinancier}/comptes-destination')->group(function () {
+                            Route::get('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'index']);
+                            Route::post('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'store'])
+                                ->middleware('admin.perm:partenaires-financiers.update');
+                            Route::put('/{compteDestination}', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'update'])
+                                ->middleware('admin.perm:partenaires-financiers.update');
+                            Route::delete('/{compteDestination}', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'destroy'])
+                                ->middleware('admin.perm:partenaires-financiers.update');
+                        });
                     });
                 });
 
@@ -273,6 +287,8 @@ Route::middleware('plateforme.actif')->group(function () {
                     Route::get('/{reversement}',                  [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'show']);
                     Route::patch('/{reversement}/annuler',        [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'annuler'])
                         ->middleware('admin.perm:reversements.cancel');
+                    Route::post('/{reversement}/retransmettre',   [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'retransmettre'])
+                        ->middleware('admin.perm:reversements.update');
                 });
 
                 // Répartitions & Splits

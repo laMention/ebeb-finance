@@ -82,6 +82,21 @@ class ReversementAdminController extends BaseController
         } catch (\Exception $e) { return $this->throw($e); }
     }
 
+    public function retransmettre(Request $request, Reversement $reversement): JsonResponse
+    {
+        try {
+            $admin    = $request->user();
+            $avant    = ['transmission_statut' => $reversement->transmission_statut];
+            $resultat = $this->service->retransmettre($reversement);
+
+            AuditLogger::log('REVERSEMENT.RETRANSMETTRE', $admin, 'reversements', (string) $reversement->id,
+                $avant, ['success' => $resultat['success']]);
+
+            if (!$resultat['success']) return $this->sendError($resultat['message'], $resultat['data'] ?? [], 422);
+            return $this->sendResponse($resultat['data'], $resultat['message']);
+        } catch (\Exception $e) { return $this->throw($e); }
+    }
+
     public function annuler(Request $request, Reversement $reversement): JsonResponse
     {
         try {

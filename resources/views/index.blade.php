@@ -1,40 +1,30 @@
 @extends('layouts.app')
+
 @section('content')
-    @section('content')
-        <!-- HERO -->
-        @include('landing-page.sections.hero')
+    <!-- HERO -->
+    @include('landing-page.sections.hero')
 
-        <!-- PROBLEMATIQUE -->
-        @include('landing-page.sections.problematique')
+    <!-- PROBLEMATIQUE -->
+    @include('landing-page.sections.problematique')
 
+    <!-- COMMENT CA FONCTIONNE — SIGNATURE -->
+    @include('landing-page.sections.comment-ca-fonctionne')
 
-        <!-- COMMENT CA FONCTIONNE — SIGNATURE -->
-        @include('landing-page.sections.comment-ca-fonctionne')
+    <!-- FONCTIONNALITES -->
+    @include('landing-page.sections.fonctionnalite')
 
+    <!-- AVANTAGES -->
+    @include('landing-page.sections.avantage')
 
-        <!-- FONCTIONNALITES -->
-        @include('landing-page.sections.fonctionnalite')
+    <!-- STATISTIQUES -->
+    @include('landing-page.sections.statistique')
 
+    <!-- TEMOIGNAGES -->
+    @include('landing-page.sections.temoignage')
 
-        <!-- AVANTAGES -->
-        @include('landing-page.sections.avantage')
+    <!-- FAQ -->
+    @include('landing-page.sections.faq')
 
-
-        <!-- STATISTIQUES -->
-        @include('landing-page.sections.statistique')
-
-
-        <!-- TEMOIGNAGES -->
-        @include('landing-page.sections.temoignage')
-
-
-        <!-- FAQ -->
-        @include('landing-page.sections.faq')
-
-
-        <!-- CTA FINAL -->
-        @include('landing-page.sections.cta')
-
-    
-    @endsection
+    <!-- CTA FINAL -->
+    @include('landing-page.sections.cta')
 @endsection
