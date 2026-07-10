@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'libelle', 'code', 'categorie', 'est_obligatoire', 'est_actif',
     'description', 'user_id',
-    'default_type_calcul', 'default_valeur', 'default_est_actif', 'default_date_entree_en_vigueur',
+    'default_type_calcul', 'default_valeur', 'default_est_actif', 'default_date_entree_en_vigueur','montant_paiement_mensuel'
 ])]
 class TypeCotisation extends Model
 {
@@ -24,6 +24,7 @@ class TypeCotisation extends Model
         'est_obligatoire'                => 'boolean',
         'est_actif'                      => 'boolean',
         'default_valeur'                 => 'decimal:2',
+        'montant_paiement_mensuel'       => 'decimal:2',
         'default_est_actif'              => 'boolean',
         'default_date_entree_en_vigueur' => 'date',
     ];

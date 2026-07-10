@@ -402,8 +402,9 @@ class ReversementAdminService
                 $reversement->operations()->attach($pivots);
 
                 // Marquer les cotisations correspondantes comme reversées (dédup / reporting)
-                // et resynchroniser leur objectif CNPS avec la déclaration de revenu courante
-                // avant transmission au partenaire (ne jamais transmettre un objectif obsolète).
+                // et resynchroniser leur objectif (CNPS via declaration_revenus, AMU/personnalisée
+                // via TypeCotisation.montant_paiement_mensuel) avant transmission au partenaire —
+                // ne jamais transmettre un objectif obsolète.
                 foreach ($operations as $op) {
                     if (!$op->user_id || !$op->type_cotisation_id || !$op->date_operation) {
                         continue;
@@ -422,9 +423,7 @@ class ReversementAdminService
                             'reversement_id' => $reversement->id,
                         ]);
 
-                        if ($op->type_operation === 'COTISATION_CNPS') {
-                            $this->cotisationService->resynchroniserObjectif($cotisation);
-                        }
+                        $this->cotisationService->resynchroniserObjectif($cotisation);
                     }
                 }
             });

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\TypeCotisation;
 use App\Models\User;
+use Carbon\Carbon;
 
 class TypeCotisationPersonnaliseeService
 {
@@ -41,6 +42,8 @@ class TypeCotisationPersonnaliseeService
                 'code'           => $code,
                 'categorie'      => mettre_en_majuscule($data['categorie'] ?? 'PERSONNALISEE'),
                 'description'    => $data['description'] ?? null,
+                'montant_paiement_mensuel' => $data['montant_paiement_mensuel'] ?? null,
+                'default_date_entree_en_vigueur' => Carbon::now(),
                 'est_obligatoire'=> false,
                 'est_actif'      => true,
                 'user_id'        => $userId,
@@ -50,6 +53,7 @@ class TypeCotisationPersonnaliseeService
                 'type_id' => $type->id,
                 'user_id' => $userId,
                 'code'    => $code,
+                'montant_paiement_mensuel' => $data['montant_paiement_mensuel'] ?? null,
             ]);
 
             return [
@@ -197,6 +201,14 @@ class TypeCotisationPersonnaliseeService
 
             if (array_key_exists('est_actif', $data)) {
                 $champsAMettreAJour['est_actif'] = (bool) $data['est_actif'];
+            }
+
+            if (array_key_exists('valeur_par_defaut', $data)) {
+                $champsAMettreAJour['default_valeur'] = $data['valeur_par_defaut'];
+            }
+
+            if (array_key_exists('montant_paiement_mensuel', $data)) {
+                $champsAMettreAJour['montant_paiement_mensuel'] = $data['montant_paiement_mensuel'];
             }
 
             if (empty($champsAMettreAJour)) {

@@ -15,6 +15,8 @@ class UpdateTypeCotisationPersonnaliseeRequest extends FormRequest
     {
         return [
             'libelle'     => ['sometimes', 'string', 'max:255'],
+            'valeur_par_defaut' => ['sometimes', 'numeric', 'min:0'],
+            'montant_paiement_mensuel' => ['sometimes', 'numeric', 'min:0'],
             'code'        => ['sometimes', 'string', 'max:50', 'regex:/^[A-Z0-9_]+$/'],
             'description' => ['nullable', 'string'],
             'est_actif'   => ['sometimes', 'boolean'],
@@ -33,6 +35,11 @@ class UpdateTypeCotisationPersonnaliseeRequest extends FormRequest
 
             'description.string' => 'La description doit être une chaîne de caractères.',
             'est_actif.boolean'  => 'Le champ est_actif doit être vrai ou faux.',
+            'valeur_par_defaut.numeric' => 'La valeur par défaut doit être un nombre.',
+            'valeur_par_defaut.min' => 'La valeur par défaut doit être supérieure ou égale à 0.',
+            
+            'montant_paiement_mensuel.numeric' => 'Le montant du paiement mensuel doit être un nombre.',
+            'montant_paiement_mensuel.min' => 'Le montant du paiement mensuel doit être supérieure ou égale à 0.',
         ];
     }
 }

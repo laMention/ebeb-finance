@@ -7,7 +7,11 @@
       "Bash(php -l app/Http/Middleware/SecurityHeaders.php)",
       "Bash(php -l app/Http/Middleware/CheckAdminPermission.php)",
       "Bash(xargs grep -l \"logo_principal\\\\|logo\\\\|LOGO\")",
-      "Bash(xargs grep -l -i \"recap\\\\|summary\\\\|resume\")"
+      "Bash(xargs grep -l -i \"recap\\\\|summary\\\\|resume\")",
+      "Bash(php -l app/Services/TypeCotisationPersonnaliseeService.php)",
+      "Bash(php -l app/Http/Requests/StoreTypeCotisationRequest.php)",
+      "Bash(php -l app/Http/Requests/UpdateTypeCotisationRequest.php)",
+      "Bash(php -l app/Http/Requests/StoreTypeCotisationPersonnaliseeRequest.php)"
     ]
   }
 }

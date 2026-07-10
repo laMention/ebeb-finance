@@ -110,6 +110,7 @@ class TypeCotisationService
                 'default_valeur'                 => array_key_exists('default_valeur', $data) ? $data['default_valeur'] : null,
                 'default_est_actif'              => $data['default_est_actif'] ?? false,
                 'default_date_entree_en_vigueur' => $data['default_date_entree_en_vigueur'] ?? null,
+                'montant_paiement_mensuel'       => array_key_exists('montant_paiement_mensuel', $data) ? $data['montant_paiement_mensuel'] : null,
             ]);
 
             \Log::info('Type de cotisation créé', ['id' => $type->id, 'code' => $type->code]);
@@ -147,6 +148,11 @@ class TypeCotisationService
             if (array_key_exists('default_valeur', $data)) {
                 $champsAMettreAJour['default_valeur'] = $data['default_valeur'];
             }
+            
+            if(array_key_exists('montant_paiement_mensuel', $data)) {
+                $champsAMettreAJour['montant_paiement_mensuel'] = $data['montant_paiement_mensuel'];
+            }
+
             if (array_key_exists('default_est_actif', $data)) {
                 $champsAMettreAJour['default_est_actif'] = $data['default_est_actif'];
             }

@@ -104,6 +104,8 @@ class UserResource extends JsonResource
                             'categorie'       => $tc->categorie,
                             'est_obligatoire' => $tc->est_obligatoire,
                             'est_actif'       => $tc->est_actif,
+                            'valeur_par_defaut' => $tc->default_valeur,
+                            'montant_paiement_mensuel' => $tc->montant_paiement_mensuel,
                         ] : null,
                     ];
                 });
@@ -146,6 +148,8 @@ class UserResource extends JsonResource
                             'categorie'       => $tc->categorie,
                             'est_obligatoire' => $tc->est_obligatoire,
                             'est_actif'       => $tc->est_actif,
+                            'valeur_par_defaut' => $tc->default_valeur,
+                            'montant_paiement_mensuel' => $tc->montant_paiement_mensuel,
                         ] : null,
                         "objectif_epargne" => $oe ? [
                             'uuid'            => $oe->id,
@@ -214,6 +218,8 @@ class UserResource extends JsonResource
                             'categorie'       => $tc->categorie,
                             'est_obligatoire' => $tc->est_obligatoire,
                             'est_actif'       => $tc->est_actif,
+                            'valeur_par_defaut' => $tc->default_valeur,
+                            'montant_paiement_mensuel' => $tc->montant_paiement_mensuel,
                         ] : null,
                     ];
                 });

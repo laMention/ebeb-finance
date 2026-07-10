@@ -145,8 +145,6 @@ class CotisationService
 
     public function calculerObjectifMensuel(TypeCotisation $type, ?DeclarationRevenu $declaration): string
     {
-        if (!$declaration) return '0.00';
-
         $code      = strtoupper($type->code ?? '');
         $categorie = strtoupper($type->categorie ?? '');
 
@@ -154,14 +152,21 @@ class CotisationService
             // Objectif mensuel CNPS = montant_cotisation_mensuelle déclaré (source de vérité).
             // L'objectif annuel (mensuelle × 12) n'est pas stocké : il ressort naturellement
             // de la somme des 12 objectifs mensuels des Cotisation de l'année.
+            if (!$declaration) return '0.00';
             return number_format((float) $declaration->montant_cotisation_mensuelle, 2, '.', '');
         }
 
-        if (str_contains($code, 'AMU') || str_contains($categorie, 'AMU')) {
-            return bcdiv((string) $type->default_valeur, 2);
+        // AMU et cotisations personnalisées : source de vérité = TypeCotisation.montant_paiement_mensuel
+        // (ne dépend pas de declaration_revenus — sert uniquement au suivi de conformité, pas au calcul
+        // du prélèvement lui-même, qui reste piloté par ReglePrelevement/default_valeur).
+        if (!$type->montant_paiement_mensuel) {
+            \Log::warning('cotisation.objectif_mensuel_non_configure', [
+                'type_cotisation_id' => $type->id, 'code' => $type->code, 'categorie' => $type->categorie,
+            ]);
+            return '0.00';
         }
 
-        return '0.00';
+        return number_format((float) $type->montant_paiement_mensuel, 2, '.', '');
     }
 
     private function calculerStatut(string $verse, string $objectif): string
@@ -184,14 +189,16 @@ class CotisationService
             return $cotisation;
         }
 
-        $type        = $cotisation->typeCotisation ?? TypeCotisation::find($cotisation->type_cotisation_id);
-        $declaration = DeclarationRevenu::where('user_id', $cotisation->user_id)->first();
+        $type = $cotisation->typeCotisation ?? TypeCotisation::find($cotisation->type_cotisation_id);
 
-        if (!$type || !$declaration) {
+        if (!$type) {
             return $cotisation;
         }
 
-        $objectif = $this->calculerObjectifMensuel($type, $declaration);
+        // $declaration peut être null pour AMU/personnalisée : calculerObjectifMensuel()
+        // n'en a besoin que pour la branche CNPS.
+        $declaration = DeclarationRevenu::where('user_id', $cotisation->user_id)->first();
+        $objectif    = $this->calculerObjectifMensuel($type, $declaration);
         $verse    = (string) $cotisation->montant_verse;
         $restant  = bcsub($objectif, $verse, 2);
         $restant  = bccomp($restant, '0.00', 2) > 0 ? $restant : '0.00';

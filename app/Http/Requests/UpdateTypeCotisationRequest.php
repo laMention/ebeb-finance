@@ -31,7 +31,39 @@ class UpdateTypeCotisationRequest extends FormRequest
             'default_est_actif'               => ['sometimes', 'nullable', 'boolean'],
             'default_date_entree_en_vigueur'  => ['sometimes', 'nullable', 'date'],
             'description'                     => ['nullable', 'string'],
+            'montant_paiement_mensuel'        => ['sometimes', 'nullable', 'numeric', 'min:0'],
         ];
+    }
+
+    /**
+     * Vérifie que montant_paiement_mensuel reste toujours renseigné pour une cotisation AMU —
+     * source de vérité du suivi de conformité — en tenant compte de l'état actuel du modèle
+     * (categorie/montant_paiement_mensuel peuvent ne pas faire partie de cette requête partielle).
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $type = $this->route('typeCotisation');
+
+            $categorieFinale = $this->has('categorie')
+                ? strtoupper((string) $this->input('categorie'))
+                : strtoupper((string) ($type?->categorie ?? ''));
+
+            if ($categorieFinale !== 'AMU') {
+                return;
+            }
+
+            $montantFinal = $this->has('montant_paiement_mensuel')
+                ? $this->input('montant_paiement_mensuel')
+                : $type?->montant_paiement_mensuel;
+
+            if (empty($montantFinal)) {
+                $validator->errors()->add(
+                    'montant_paiement_mensuel',
+                    'Le montant du paiement mensuel est obligatoire pour une cotisation AMU (source de vérité du suivi de conformité).',
+                );
+            }
+        });
     }
 
     public function messages(): array
@@ -56,6 +88,8 @@ class UpdateTypeCotisationRequest extends FormRequest
             'default_date_entree_en_vigueur.date' => 'La date d\'entrée en vigueur doit être une date valide.',
 
             'description.string' => 'La description doit être une chaîne de caractères.',
+            'montant_paiement_mensuel.numeric' => 'Le montant du paiement mensuel doit être un nombre.',
+            'montant_paiement_mensuel.min' => 'Le montant du paiement mensuel doit être supérieure ou égale à 0.',
         ];
     }
 }
