@@ -68,6 +68,34 @@ class RecapitulatifService
         ];
     }
 
+    /**
+     * Soldes globaux (toute la durée de vie du compte, sans filtre de période) pour l'app mobile :
+     *  - solde_principal : montant réellement disponible hors épargne
+     *      (total reçu - cotisations - commissions - épargne prélevée)
+     *  - solde_epargne   : total cumulé des opérations de type EPARGNE (indépendant du solde principal)
+     */
+    public function soldesGlobaux(User $user): array
+    {
+        $operations = Operation::where('user_id', $user->id)
+            ->where('statut', 'SUCCES')
+            ->get(['type_operation', 'montant']);
+
+        $totalRecu        = $this->somme($operations, ['PAIEMENT_CLIENT', 'REVERSEMENT', 'REVERSEMENT_ESCROW']);
+        $totalCotisations = $this->somme($operations, self::TYPES_COTISATIONS);
+        $totalCommissions = $this->somme($operations, self::TYPES_COMMISSIONS);
+        $totalEpargne     = $this->somme($operations, ['EPARGNE']);
+
+        $soldePrincipal = bcsub(
+            bcsub(bcsub((string) $totalRecu, (string) $totalCotisations, 2), (string) $totalCommissions, 2),
+            (string) $totalEpargne,2 
+        );
+
+        return [
+            'solde_principal' => $this->formater($soldePrincipal),
+            'solde_epargne'   => $this->formater($totalEpargne),
+        ];
+    }
+
     // ─── Helpers privés ──────────────────────────────────────────────────────
 
     private function resoudrePeriode(array $params): array

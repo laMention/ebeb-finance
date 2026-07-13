@@ -19,11 +19,15 @@ class UserService
                 'declarationRevenu',
                 'compteMobileMoneys',
                 'enfants',
-                'cotisations.typeCotisation',
+                // Le 20 dernières cotisations et les 20 dernières opérations pour éviter de surcharger la réponse
+                // 'cotisations.typeCotisation',
+                'cotisations' => fn ($q) => $q->latest()->limit(20)->with('typeCotisation'),
                 'escrows.operation',
-                'operations.type_cotisation',
+                // 'operations.type_cotisation',
+                'operations' => fn ($q) => $q->latest()->limit(20)->with(['type_cotisation', 'objectif_epargne']),
                 'operations.objectif_epargne',
-                'paiementsEntrants',
+                // 'paiementsEntrants',
+                'paiementsEntrants' => fn ($q) => $q->latest()->limit(20),
                 "reglePrelevements"
             ])
             ->firstOrFail();

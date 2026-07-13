@@ -112,6 +112,9 @@ Route::middleware('plateforme.actif')->group(function () {
             // Récapitulatif des prélèvements & solde disponible (P36)
             Route::get('recapitulatif', [\App\Http\Controllers\Apiv1\RecapitulatifController::class, 'index']);
 
+            // Soldes globaux du portefeuille (solde_principal, solde_epargne)
+            Route::get('solde', [\App\Http\Controllers\Apiv1\SoldeController::class, 'index']);
+
         });
 
         
