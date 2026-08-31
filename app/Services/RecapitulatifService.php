@@ -76,8 +76,10 @@ class RecapitulatifService
      * cible déclarée/configurée, pas un montant effectivement mouvementé) :
      *  - CNPS   : `declaration_revenus.montant_cotisation_mensuelle` déclaré
      *             par l'utilisateur à l'inscription ;
-     *  - AMU et cotisations personnalisées : `type_cotisations.default_valeur`
-     *    de chaque type actif (global ou propre à l'utilisateur).
+     *  - AMU et cotisations personnalisées : `type_cotisations.montant_paiement_mensuel`
+     *    de chaque type actif (global ou propre à l'utilisateur) — source de
+     *    vérité du suivi de conformité, distincte de `default_valeur` (qui ne
+     *    sert qu'à pré-remplir le taux/montant d'une règle de prélèvement).
      */
     private function calculerObjectifMensuel(User $user): float
     {
@@ -91,7 +93,7 @@ class RecapitulatifService
             ->get();
 
         $objectifAutres = (float) $autresTypes->sum(
-            fn (TypeCotisation $type) => (float) ($type->default_valeur ?? 0)
+            fn (TypeCotisation $type) => (float) ($type->montant_paiement_mensuel ?? 0)
         );
 
         return $objectifCnps + $objectifAutres;
