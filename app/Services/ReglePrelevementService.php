@@ -402,6 +402,13 @@ class ReglePrelevementService
                     'est_obligatoire'     => $type->est_obligatoire,
                     'description'         => $type->description,
                     'est_personnalise'    => !is_null($type->user_id),
+                    // Valeurs par défaut du type, utilisées par le mobile pour
+                    // pré-remplir le taux quand l'utilisateur n'a pas encore
+                    // configuré de règle (voir `regle` ci-dessous, null dans ce cas).
+                    'montant_paiement_mensuel' => $type->montant_paiement_mensuel,
+                    'default_type_calcul'      => $type->default_type_calcul,
+                    'default_valeur'           => $type->default_valeur,
+                    'default_est_actif'        => $type->default_est_actif,
                     'regle'               => $regle ? [
                         'id'             => $regle->id,
                         'taux'           => $regle->type_calcul === 'POURCENTAGE' ? $regle->valeur : 0,

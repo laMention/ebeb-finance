@@ -15,7 +15,19 @@ if (!function_exists('mettre_en_majuscule')) {
 if (!function_exists('ajout_prefix_telephone')) {
     function ajout_prefix_telephone(?string $telephone): ?string
     {
-        return  '+225' .$telephone;
+        if ($telephone === null) {
+            return null;
+        }
+
+        // Le mobile normalise déjà le numéro en E.164 (+225...) avant chaque
+        // appel : ne pas re-préfixer, sous peine de désynchroniser le numéro
+        // stocké à l'inscription de celui utilisé pour les appels suivants
+        // (vérification OTP, connexion).
+        if (str_starts_with($telephone, '+225')) {
+            return $telephone;
+        }
+
+        return '+225' . $telephone;
     }
 }
 

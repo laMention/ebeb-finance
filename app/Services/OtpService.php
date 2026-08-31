@@ -86,6 +86,14 @@ class OtpService
     public function verify(string $telephone, string $code): array
     {
         $user = User::where('telephone', $telephone)->first();
+
+        if (!$user) {
+            return [
+                'success' => false,
+                'message' => 'Aucun utilisateur trouvé pour ce numéro de téléphone.',
+            ];
+        }
+
         $otp = SessionOtp::where('user_id', $user->id)->first();
 
         // Vérifier l'existence de l'OTP
@@ -154,6 +162,10 @@ class OtpService
     {
         $user = User::where('telephone', $telephone)->first();
 
+        if (!$user) {
+            return false;
+        }
+
         $otp = SessionOtp::where('user_id', $user->id)
             ->where('est_utilise', true)
             ->first();
@@ -175,6 +187,9 @@ class OtpService
     public function isVerified(string $telephone): bool
     {
         $user = User::where('telephone', $telephone)->first();
+        if (!$user) {
+            return false;
+        }
         return SessionOtp::where('user_id', $user->id)
             ->where('est_utilise', true)
             ->exists();

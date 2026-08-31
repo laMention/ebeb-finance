@@ -51,7 +51,9 @@ class BaseController extends Controller
 
     public function throw($e, $message = "Quelque chose s'est mal passé. Contacter le support technique"): never
     {
-        \Log::info($e);
+        \Log::error($e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),]);
         throw new HttpResponseException(response()->json(["message" => $message], 500));
     }
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Operation;
+use App\Models\TypeCotisation;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -53,12 +54,14 @@ class RecapitulatifService
         $totalPrelevementsHorsEpargne = bcadd((string) $totalCotisations, (string) $totalCommissions, 2);
         $soldeTheorique  = bcsub((string) $totalRecu, $totalPrelevementsHorsEpargne, 2);
         $soldeDisponible = bcsub($soldeTheorique, (string) $totalEpargne, 2);
+        $totalObjectifMensuel = $this->calculerObjectifMensuel($user);
 
         return [
             'periode'                         => $periode,
             'total_recu'                      => $this->formater($totalRecu),
             'cotisations'                     => $cotisations->values(),
             'total_cotisations'               => $this->formater($totalCotisations),
+            'total_objectif_mensuel'          => $this->formater($totalObjectifMensuel),
             'commissions'                     => $commissions->values(),
             'total_commissions'               => $this->formater($totalCommissions),
             'total_prelevements_hors_epargne' => $this->formater($totalPrelevementsHorsEpargne),
@@ -66,6 +69,32 @@ class RecapitulatifService
             'total_epargne'                   => $this->formater($totalEpargne),
             'solde_disponible'                => $this->formater($soldeDisponible),
         ];
+    }
+
+    /**
+     * Objectif mensuel total, indépendant de la période affichée (c'est une
+     * cible déclarée/configurée, pas un montant effectivement mouvementé) :
+     *  - CNPS   : `declaration_revenus.montant_cotisation_mensuelle` déclaré
+     *             par l'utilisateur à l'inscription ;
+     *  - AMU et cotisations personnalisées : `type_cotisations.default_valeur`
+     *    de chaque type actif (global ou propre à l'utilisateur).
+     */
+    private function calculerObjectifMensuel(User $user): float
+    {
+        $objectifCnps = (float) ($user->declarationRevenu?->montant_cotisation_mensuelle ?? 0);
+
+        $autresTypes = TypeCotisation::where('est_actif', true)
+            ->where('code', '!=', 'CNPS')
+            ->where(function ($q) use ($user) {
+                $q->whereNull('user_id')->orWhere('user_id', $user->id);
+            })
+            ->get();
+
+        $objectifAutres = (float) $autresTypes->sum(
+            fn (TypeCotisation $type) => (float) ($type->default_valeur ?? 0)
+        );
+
+        return $objectifCnps + $objectifAutres;
     }
 
     /**
@@ -145,7 +174,13 @@ class RecapitulatifService
                 $montant  = $groupe->sum(fn ($op) => (float) $op->montant);
 
                 return [
-                    'type_operation' => $premier->type_operation,
+                    'type_operation'     => $premier->type_operation,
+                    // Indispensable pour rattacher un montant versé à un type
+                    // de cotisation précis : plusieurs cotisations
+                    // personnalisées distinctes partagent le même
+                    // `type_operation` (COTISATION_PERSONNALISEE), seul cet
+                    // identifiant les distingue.
+                    'type_cotisation_id' => $premier->type_cotisation_id,
                     'libelle'        => $type?->libelle ?? $this->libelleParDefaut($premier->type_operation),
                     'categorie'      => $type?->categorie ?? null,
                     'montant'        => $this->formater($montant),

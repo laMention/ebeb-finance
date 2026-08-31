@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
@@ -13,6 +14,27 @@ class StoreUserRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Normalise la casse des champs ENUM avant validation : le client peut
+     * envoyer indifféremment `celibataire` ou `CELIBATAIRE`, seule la forme
+     * majuscule existe dans les colonnes ENUM (`users.situation_familiale`,
+     * `users.sexe`, `document_kyc.type_document`) — la comparaison de
+     * `Rule::in` ci-dessous est sensible à la casse.
+     */
+    protected function prepareForValidation(): void
+    {
+        $champs = ['situation_familiale', 'sexe', 'type_document'];
+        $normalises = [];
+
+        foreach ($champs as $champ) {
+            if (is_string($this->input($champ))) {
+                $normalises[$champ] = mb_strtoupper($this->input($champ));
+            }
+        }
+
+        $this->merge($normalises);
     }
 
     /**
@@ -28,8 +50,12 @@ class StoreUserRequest extends FormRequest
             'prenom' => ['required', 'string', 'max:255'],
             'numero_cnps' => ['nullable', 'string','max:255'],
             'numero_cmu' => ['nullable', 'string','max:255'],
-            'situation_familiale' => ['required', 'string',], //
-            'sexe' => ['nullable', 'string'],
+            // Doit correspondre exactement à l'ENUM de la table `users`
+            // (migration 0001_01_01_000000_create_users_table), sous peine
+            // d'un crash SQL « Data truncated » à l'insertion.
+            'situation_familiale' => ['required', 'string', Rule::in(['CELIBATAIRE', 'MARIE', 'DIVORCE', 'VEUF'])],
+            // Idem pour l'ENUM `sexe` de la même table.
+            'sexe' => ['nullable', 'string', Rule::in(['HOMME', 'FEMME'])],
             'date_naissance' => ['required', 'date'],
 
             // INFORMATIONS PERSONNELLES            
@@ -37,7 +63,7 @@ class StoreUserRequest extends FormRequest
             // 'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'lieu_naissance' => ['nullable', 'string','max:255'],
             'profession' => ['nullable', 'string','max:255'], //ACTIVITE
-            'telephone' => ['required', 'string','min:8','max:10'],
+            'telephone' => ['required', 'string','min:8','max:15'],
             // 'statut' => ['required', 'string','min:8','max:10'],
             // 'type_carte' => ['nullable', 'string','min:8','max:10'],
             // 'pays' => ['required', 'string','min:8','max:10'],
@@ -62,7 +88,10 @@ class StoreUserRequest extends FormRequest
             'commune_sous_prefecture_activite' => ['required', 'string'],
 
             // DOCUMENTS KYC
-            'type_document'=> ['required', 'string'],
+            // Doit correspondre exactement à l'ENUM de `document_kyc.type_document`
+            // (migration create_document_k_y_c_s_table), sous peine d'un crash SQL
+            // « Data truncated » à l'insertion.
+            'type_document'=> ['required', 'string', Rule::in(['CNI', 'PASSPORT', 'PERMIS_CONDUIRE', 'ATTESTATION'])],
             'numero_document'=> ['required', 'string'],
             'document_etablie_le'=> ['required', 'date'],
             'document_expire_le'=> ['required', 'date'],
@@ -92,6 +121,11 @@ class StoreUserRequest extends FormRequest
 
             'situation_familiale.required' => 'La situation familiale est obligatoire.',
             'situation_familiale.string' => 'La situation familiale doit être une chaîne de caractères.',
+            'situation_familiale.in' => 'La situation familiale doit être CELIBATAIRE, MARIE, DIVORCE ou VEUF.',
+
+            'sexe.in' => 'Le sexe doit être HOMME ou FEMME.',
+
+            'type_document.in' => 'Le type de document doit être CNI, PASSPORT, PERMIS_CONDUIRE ou ATTESTATION.',
 
             'sexe.string' => 'Le sexe doit être une chaîne de caractères.',
 

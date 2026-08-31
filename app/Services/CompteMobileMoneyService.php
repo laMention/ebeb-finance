@@ -16,7 +16,8 @@ class CompteMobileMoneyService
         try {
             $comptes = CompteMobileMoney::where('user_id', $user->id)
                 ->with(['moyen_paiement', 'qrcode_paiement'])
-                ->orderBy('created_at', 'desc')
+                ->orderByDesc('est_principal')
+                ->orderByDesc('created_at')
                 ->get();
 
             return [

@@ -20,6 +20,27 @@ class TypeCotisationPersonnaliseeController extends BaseController
     }
 
     /**
+     * Suggestions de types déjà créés par d'autres utilisateurs, pour éviter
+     * les doublons de nommage lors de la création d'une nouvelle cotisation.
+     */
+    public function suggestions(Request $request): JsonResponse
+    {
+        try {
+            $userId = $request->user()->id;
+            $resultat = $this->service->suggestionsTypesPersonnalises($userId);
+
+            if ($resultat['success'] === false) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+
+            return $this->sendResponse($resultat, $resultat['message']);
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
      * Lister les types de cotisations personnalisés de l'utilisateur.
      */
     public function index(Request $request): JsonResponse

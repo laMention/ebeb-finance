@@ -24,6 +24,7 @@ class UpdateMoyenPaiementRequest extends FormRequest
             'libelle'    => ['sometimes', 'string', 'max:255'],
             'code'       => ['sometimes', 'string', 'max:50', Rule::unique('moyen_paiements', 'code')->ignore($moyenPaiementId)],
             'logo'       => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp'],
+            'couleur'    => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'operateur'  => ['sometimes', 'string', 'max:100'],
             'est_actif'  => ['sometimes', 'boolean'],
         ];
@@ -41,6 +42,8 @@ class UpdateMoyenPaiementRequest extends FormRequest
 
             'logo.string'       => 'Le logo doit être une chaîne de caractères.',
             'logo.max'          => 'Le logo ne peut pas dépasser 500 caractères.',
+
+            'couleur.regex'     => 'La couleur doit être au format hexadécimal (#RRGGBB).',
 
             'operateur.string'  => "L'opérateur doit être une chaîne de caractères.",
             'operateur.max'     => "L'opérateur ne peut pas dépasser 100 caractères.",

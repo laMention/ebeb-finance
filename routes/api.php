@@ -33,7 +33,12 @@ Route::middleware('plateforme.actif')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('espace-utilisateur')->group(function () {
             Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
-            Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
+            // Modification du profil / informations personnelles — compte actif requis
+            // (tant que le compte est en attente de vérification, ces données ne
+            // doivent pas pouvoir être modifiées).
+            Route::middleware('compte.actif')->group(function () {
+                Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
+            });
             Route::patch('code-pin', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourCodePin']);
             Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\UserController::class,'deconnexion']);
             
@@ -55,25 +60,31 @@ Route::middleware('plateforme.actif')->group(function () {
                 Route::get('/types', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'types']);
                 Route::get('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'show']);
 
-                // Mutations — compte actif requis
+                // Configuration des taux — accessible dès l'inscription, avant même
+                // que le compte soit actif (l'utilisateur définit ses préférences
+                // pendant que ses documents sont en cours de vérification).
+                Route::post('/configurer-regle-prelevement', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurerRegleTypeCotisation']);
+                Route::post('/configurer', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurer']);
+
+                // Autres mutations — compte actif requis
                 Route::middleware('compte.actif')->group(function () {
-                    Route::post('/configurer-regle-prelevement', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurerRegleTypeCotisation']);
-                    Route::post('/configurer', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurer']);
                     Route::post('/reordonner', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'reordonner']);
                     Route::delete('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'destroy']);
                     Route::patch('/{reglePrelevement}/statut', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'basculerStatut']);
                 });
             });
 
+            // Moyens de paiement actifs — utilisé pour choisir/rattacher un compte mobile money
+            Route::get('moyens-paiement', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'moyensPaiement']);
+
             // Comptes Mobile Money utilisateur
             Route::prefix('comptes-mobile-money')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'index']);
 
-                // Mutations — compte actif requis
-                Route::middleware('compte.actif')->group(function () {
-                    Route::post('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'store']);
-                    Route::patch('/{compteMobileMoney}/principal', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'definirPrincipal']);
-                });
+                // Choix du compte principal — accessible dès l'inscription, avant
+                // même que le compte soit actif.
+                Route::post('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'store']);
+                Route::patch('/{compteMobileMoney}/principal', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'definirPrincipal']);
             });
 
             // Objectif d'épargne
@@ -91,6 +102,7 @@ Route::middleware('plateforme.actif')->group(function () {
             // Types de cotisations personnalisés
             Route::prefix('types-cotisation-personnalises')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
+                Route::get('/suggestions', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'suggestions']);
                 Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'show']);
 
                 // Mutations — compte actif requis
@@ -498,6 +510,23 @@ Route::middleware('plateforme.actif')->group(function () {
                         ->where('filename', '.+');
                     Route::delete('/backups/{filename}',                [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDelete'])
                         ->where('filename', '.+');
+                });
+
+                // Condition générales
+                Route::prefix('condition-generale')->middleware('admin.perm:condition-generale.view')->group(function () {
+                    Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'index'])
+                        ->middleware('admin.perm:condition-generale.view');
+                    Route::post('/',                         [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'store'])
+                        ->middleware('admin.perm:condition-generale.create');
+                    
+                    Route::get('/{conditionGenerale}',                      [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'show'])
+                        ->middleware('admin.perm:condition-generale.view');
+                    
+                    Route::post('/{conditionGenerale}',                      [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'update'])
+                        ->middleware('admin.perm:condition-generale.update');
+                    
+                    Route::delete('/{conditionGenerale}',                   [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'destroy'])
+                        ->middleware('admin.perm:condition-generale.delete');
                 });
             });
         });

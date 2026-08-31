@@ -76,6 +76,51 @@ class TypeCotisationPersonnaliseeService
     }
 
     /**
+     * Suggestions de types de cotisations personnalisés déjà créés par
+     * d'autres utilisateurs (libellé/code/catégorie uniquement — jamais leur
+     * montant ni leur description, propres à chacun). Sert à proposer une
+     * saisie cohérente sans dupliquer les informations communes : choisir une
+     * suggestion crée toujours une nouvelle ligne pour l'utilisateur courant,
+     * sans jamais modifier le type d'origine.
+     */
+    public function suggestionsTypesPersonnalises(string $userId): array
+    {
+        try {
+            $suggestions = TypeCotisation::whereNotNull('user_id')
+                ->where('user_id', '!=', $userId)
+                ->where('est_actif', true)
+                ->select('code', 'libelle', 'categorie')
+                ->get()
+                ->unique('code')
+                ->sortBy('libelle')
+                ->values()
+                ->map(fn (TypeCotisation $type) => [
+                    'code'      => $type->code,
+                    'libelle'   => $type->libelle,
+                    'categorie' => $type->categorie,
+                ]);
+
+            return [
+                'success' => true,
+                'message' => 'Suggestions récupérées avec succès',
+                'data'    => $suggestions,
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors du listage des suggestions de types personnalisés', [
+                'user_id' => $userId,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage(),
+                'data'    => [],
+            ];
+        }
+    }
+
+    /**
      * Lister les types de cotisations personnalisés de l'utilisateur.
      */
     public function listerTypesPersonnalises(string $userId): array
