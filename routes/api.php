@@ -121,6 +121,12 @@ Route::middleware('plateforme.actif')->group(function () {
                 Route::patch('/{notification}/lue', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerLue']);
             });
 
+            // Condition générale active (consultation depuis l'application mobile)
+            Route::get('c:ondition-generale', [\App\Http\Controllers\Apiv1\ConditionGeneraleController::class, 'active']);
+
+            // Pages CMS publiées (Conditions générales, Avis de confidentialité...)
+            Route::get('pages/{type}', [\App\Http\Controllers\Apiv1\PageController::class, 'parType']);
+
             // Récapitulatif des prélèvements & solde disponible (P36)
             Route::get('recapitulatif', [\App\Http\Controllers\Apiv1\RecapitulatifController::class, 'index']);
 

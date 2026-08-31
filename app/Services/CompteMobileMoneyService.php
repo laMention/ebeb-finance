@@ -66,7 +66,11 @@ class CompteMobileMoneyService
             }
 
             $numeroCompte = $data['numero_compte'] ?? $user->telephone;
-            $estPrincipal = (bool) $data['est_principal'] ??  $moyen->par_defaut;
+            // `(bool) $data['est_principal'] ?? ...` lève « Undefined array
+            // key » quand la clé est absente : le cast s'applique avant que
+            // `??` ne puisse intercepter l'accès manquant. Il faut coalescer
+            // d'abord, caster ensuite.
+            $estPrincipal = (bool) ($data['est_principal'] ?? $moyen->par_defaut);
 
             if (empty($numeroCompte)) {
                 return [
