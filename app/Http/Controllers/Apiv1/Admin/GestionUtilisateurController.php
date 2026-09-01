@@ -9,16 +9,20 @@ use App\Models\User;
 use App\Services\AdminUserService;
 use App\Services\AlerteGenerator;
 use App\Services\AuditLogger;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class GestionUtilisateurController extends BaseController
 {
     protected AdminUserService $adminUserService;
+    protected NotificationService $notificationService;
 
-    public function __construct(AdminUserService $adminUserService)
+
+    public function __construct(AdminUserService $adminUserService, NotificationService $notificationService)
     {
         $this->adminUserService = $adminUserService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -204,6 +208,23 @@ class GestionUtilisateurController extends BaseController
             }
 
             AuditLogger::log('USER.UPDATE_INFO', $request->user(), 'utilisateurs', $user->id, $avant, $data);
+
+            // Envoyer une notification à l'utilisateur si les informations administratives ont été modifiées
+            if ($avant['numero_cnps'] !== $data['numero_cnps'] || $avant['numero_cmu'] !== $data['numero_cmu']) {
+                // Enregistrer une notification pour l'utilisateur
+                $this->notificationService->envoyerNotification(
+                    $user->id,
+                    'in-app',
+                    'MISE À JOUR DES INFORMATIONS ADMINISTRATIVES',
+                    [
+                        'titre'   => 'Mise à jour des informations administratives (CNPS/CMU)',
+                        'message' => 'Vos informations administratives ont été mises à jour avec succès.',
+                        'sujet'   => 'Mise à jour des informations administratives — ' . config('app.name'),
+                    ],
+                    true
+                );
+
+            }
 
             return $this->sendResponse(['user' => $resultat['user']], $resultat['message']);
 

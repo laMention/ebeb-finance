@@ -259,6 +259,25 @@ class RolesAndPermissionsSeeder extends Seeder
                 ],
             ],
 
+            'tickets' => [
+                'label' => 'Support — Tickets & Réclamations',
+                'permissions' => [
+                    'view'   => 'Consulter les tickets',
+                    'update' => 'Modifier le statut/la sévérité d\'un ticket',
+                    'delete' => 'Supprimer un ticket',
+                ],
+            ],
+
+            'faq' => [
+                'label' => 'Support — FAQ',
+                'permissions' => [
+                    'view'   => 'Consulter la FAQ',
+                    'create' => 'Créer une entrée FAQ',
+                    'update' => 'Modifier une entrée FAQ',
+                    'delete' => 'Supprimer une entrée FAQ',
+                ],
+            ],
+
             'systeme' => [
                 'label' => 'Système (SuperAdmin uniquement)',
                 'permissions' => [
@@ -351,6 +370,8 @@ class RolesAndPermissionsSeeder extends Seeder
                     'mobile-money.view',
                     'alertes.view', 'alertes.update',
                     'notifications-config.view',
+                    'tickets.view', 'tickets.update',
+                    'faq.view',
                 ],
             ],
         ];

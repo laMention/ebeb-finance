@@ -127,6 +127,9 @@ Route::middleware('plateforme.actif')->group(function () {
             // Pages CMS publiées (Conditions générales, Avis de confidentialité...)
             Route::get('pages/{type}', [\App\Http\Controllers\Apiv1\PageController::class, 'parType']);
 
+            // Support — signalement d'un problème par l'utilisateur
+            Route::post('support/signaler', [\App\Http\Controllers\Apiv1\SupportController::class, 'signaler']);
+
             // Récapitulatif des prélèvements & solde disponible (P36)
             Route::get('recapitulatif', [\App\Http\Controllers\Apiv1\RecapitulatifController::class, 'index']);
 
@@ -478,6 +481,32 @@ Route::middleware('plateforme.actif')->group(function () {
                         ->middleware('admin.perm:pages.update');
                     Route::patch('/{id}/restaurer',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'restaurer'])
                         ->middleware('admin.perm:pages.restore');
+                });
+
+                // Support — Tickets / Réclamations
+                Route::prefix('tickets')->middleware('admin.perm:tickets.view')->group(function () {
+                    Route::get('/',       [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'index']);
+                    Route::get('/{id}',   [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'show']);
+                    Route::patch('/{id}', [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'update'])
+                        ->middleware('admin.perm:tickets.update');
+                    Route::delete('/{id}', [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'destroy'])
+                        ->middleware('admin.perm:tickets.delete');
+                });
+
+                // Support — FAQ
+                Route::prefix('faq')->middleware('admin.perm:faq.view')->group(function () {
+                    Route::get('/',                 [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'index']);
+                    Route::post('/',                [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'store'])
+                        ->middleware('admin.perm:faq.create');
+                    Route::get('/{id}',             [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'show']);
+                    Route::put('/{id}',             [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'update'])
+                        ->middleware('admin.perm:faq.update');
+                    Route::delete('/{id}',          [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'destroy'])
+                        ->middleware('admin.perm:faq.delete');
+                    Route::patch('/{id}/publier',   [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'publier'])
+                        ->middleware('admin.perm:faq.update');
+                    Route::patch('/{id}/depublier', [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'depublier'])
+                        ->middleware('admin.perm:faq.update');
                 });
 
                 // Export de données (PDF, Excel, CSV)
