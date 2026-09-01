@@ -57,6 +57,16 @@ class UserService
         return ['success' => true];
     }
 
+    /**
+     * Vérifie le code PIN de l'utilisateur déjà authentifié (jeton Sanctum
+     * valide), sans le modifier — déverrouillage de l'application après une
+     * mise en arrière-plan, la session restant active tout du long.
+     */
+    public function verifierCodePin(User $user, string $codePin): bool
+    {
+        return Hash::check($codePin, $user->password);
+    }
+
     
 
     public function deconnexion($user)

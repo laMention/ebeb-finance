@@ -7,6 +7,7 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\AjoutDocumentKYCRequest;
 use App\Http\Requests\UpdateCodePinRequest;
 use App\Http\Requests\UpdateProfilRequest;
+use App\Http\Requests\VerifierCodePinRequest;
 use App\Http\Resources\UserResource;
 use App\Services\NotificationService;
 use App\Services\UserService;
@@ -64,6 +65,30 @@ class UserController extends BaseController
             }
 
             return $this->sendResponse([], 'Code PIN mis à jour avec succès.');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Déverrouillage de l'application : vérifie le code PIN de l'utilisateur
+     * déjà authentifié, sans le modifier ni exiger un nouvel OTP — la session
+     * (jeton Sanctum) reste valide tout du long.
+     */
+    public function verifierCodePin(VerifierCodePinRequest $request)
+    {
+        try {
+            $valide = $this->userService->verifierCodePin($request->user(), $request->validated()['code_pin']);
+
+            if (!$valide) {
+                // 400, pas 401 : un 401 est interprété côté mobile comme une
+                // session expirée et déclenche une déconnexion globale, alors
+                // qu'ici la session (jeton Sanctum) reste valide.
+                return $this->sendError('Code PIN incorrect.', [], 400);
+            }
+
+            return $this->sendResponse([], 'Code PIN vérifié.');
 
         } catch (\Exception $e) {
             return $this->throw($e);

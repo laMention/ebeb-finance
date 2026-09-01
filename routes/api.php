@@ -40,6 +40,10 @@ Route::middleware('plateforme.actif')->group(function () {
                 Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
             });
             Route::patch('code-pin', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourCodePin']);
+            // Déverrouillage de l'app (session déjà valide) — débit limité en plus
+            // du throttle global, un code PIN n'a que 6 chiffres.
+            Route::post('code-pin/verifier', [\App\Http\Controllers\Apiv1\UserController::class, 'verifierCodePin'])
+                ->middleware('throttle:8,1');
             Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\UserController::class,'deconnexion']);
             
             // Paiements reçus
