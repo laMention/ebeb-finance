@@ -28,10 +28,11 @@ class ModifierDocumentKYCRequest extends FormRequest
             'numero_document'=> ['nullable',  'string'],
             'document_etablie_le'=> ['nullable', 'date'],
             'document_expire_le'=> [ 'nullable', 'date'],
-            'url_recto' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_verso' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_selfie' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            // 'url_selfie'=> ['nullable', 'file','image','mimes:jpeg,png,jpg,gif,svg|max:2048'],
+            // `svg` exclu volontairement (XSS stockée via <script> embarqué) —
+            // voir StoreUserRequest pour le même correctif côté inscription.
+            'url_recto' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'url_verso' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'url_selfie' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ];
     }
 

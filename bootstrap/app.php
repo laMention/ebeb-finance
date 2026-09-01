@@ -39,6 +39,11 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        // Limiteur de débit global sur toute l'API (voir AppServiceProvider::
+        // configureRateLimiting) — aucune route n'était protégée par défaut
+        // en dehors des `throttle:X,Y` explicites déjà posés sur l'auth.
+        $middleware->throttleApi();
+
         $middleware->api(append: [
             \App\Http\Middleware\SecurityHeaders::class,
         ]);

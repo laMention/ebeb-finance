@@ -95,9 +95,13 @@ class StoreUserRequest extends FormRequest
             'numero_document'=> ['required', 'string'],
             'document_etablie_le'=> ['required', 'date'],
             'document_expire_le'=> ['required', 'date'],
-            'url_recto' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_verso' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
-            'url_selfie' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+            // `svg` exclu volontairement : c'est un format XML, pas un raster —
+            // un SVG peut embarquer du <script> exécuté par le navigateur à
+            // l'ouverture directe du fichier (XSS stockée). `image` seul ne
+            // suffit pas à l'exclure (Laravel l'accepte comme type "image").
+            'url_recto' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'url_verso' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'url_selfie' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ];
     }
 

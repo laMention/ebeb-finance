@@ -4,8 +4,11 @@ namespace App\Providers;
 
 use App\Services\EmailBrandingService;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
 
         // Injecte automatiquement $branding dans tous les templates emails.*
         View::composer('emails.*', fn (\Illuminate\View\View $view) =>
@@ -37,6 +41,20 @@ class AppServiceProvider extends ServiceProvider
         
         // Forcer les migrations à utiliser des UUID au lieu d'incréments entiers
         Schema::defaultMorphKeyType('uuid');
+    }
+
+    /**
+     * Limiteur de débit global de l'API — filet de sécurité par défaut sur
+     * toute route sous `routes/api.php` (groupe de middleware `api`),
+     * indépendant des `throttle:X,Y` déjà posés explicitement sur certaines
+     * routes sensibles (OTP, connexion admin), qui restent plus stricts et
+     * continuent de s'appliquer par-dessus celui-ci.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
     }
 
     /**

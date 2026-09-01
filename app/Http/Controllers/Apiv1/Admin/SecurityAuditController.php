@@ -16,6 +16,17 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SecurityAuditController extends BaseController
 {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Guard Super Admin
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function superAdminOnly(Request $request): void
+    {
+        if (!$request->user()?->isSuperAdmin()) {
+            abort(403, 'Accès réservé au Super Admin.');
+        }
+    }
+
     public function dashboard(): JsonResponse
     {
         $rapport = AuditSecuriteRapport::with(['realisePar:id,nom,prenom'])
@@ -212,6 +223,8 @@ class SecurityAuditController extends BaseController
 
     public function lancer(Request $request): JsonResponse
     {
+        $this->superAdminOnly($request);
+
         // Verrou : un seul audit actif à la fois
         if (Cache::has('audit_securite_en_cours')) {
             return $this->sendError('Un audit est déjà en cours. Veuillez patienter.', [], 409);
@@ -310,6 +323,8 @@ class SecurityAuditController extends BaseController
 
     public function appliquerCorrections(Request $request): JsonResponse
     {
+        $this->superAdminOnly($request);
+
         $rapport = AuditSecuriteRapport::orderByDesc('date_audit')->first();
 
         if (!$rapport) {
