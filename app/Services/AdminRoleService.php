@@ -94,6 +94,14 @@ class AdminRoleService
                 ->where('is_archived', false)
                 ->findOrFail($data['role_id']);
 
+            // Le rôle super-admin ne peut jamais être attribué via cette route
+            // (réservée à la gestion des rôles "normaux") — sans quoi n'importe
+            // quel admin disposant de la permission gestion-admins.assign
+            // pourrait s'auto-promouvoir, ou promouvoir un tiers, en accès total.
+            if ($role->name === 'super-admin') {
+                return ['success' => false, 'message' => 'Le rôle super-admin ne peut pas être attribué par ce biais.'];
+            }
+
             $admin->syncRoles([$role]);
             $admin->load(['roles.permissions', 'permissions']);
 
