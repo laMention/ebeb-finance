@@ -21,6 +21,7 @@ class StoreMoyenPaiementRequest extends FormRequest
             'libelle'    => ['required', 'string', 'max:255'],
             'code'       => ['required', 'string', 'max:50', 'unique:moyen_paiements,code'],
             'logo'       => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp'],
+            'couleur'    => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'operateur'  => ['required', 'string', 'max:100'],
             'par_defaut' => ['boolean'],
             'est_actif'  => ['boolean'],
@@ -41,6 +42,8 @@ class StoreMoyenPaiementRequest extends FormRequest
 
             'logo.image'  => 'Le logo doit être une image.',
             'logo.mimes'  => "Format d'image accepté : png, jpg, jpeg, webp, svg.",
+
+            'couleur.regex' => 'La couleur doit être au format hexadécimal (#RRGGBB).',
 
             'operateur.required' => "L'opérateur est obligatoire.",
             'operateur.string'   => "L'opérateur doit être une chaîne de caractères.",

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\TypeCotisation;
 use App\Models\User;
+use Carbon\Carbon;
 
 class TypeCotisationPersonnaliseeService
 {
@@ -41,6 +42,8 @@ class TypeCotisationPersonnaliseeService
                 'code'           => $code,
                 'categorie'      => mettre_en_majuscule($data['categorie'] ?? 'PERSONNALISEE'),
                 'description'    => $data['description'] ?? null,
+                'montant_paiement_mensuel' => $data['montant_paiement_mensuel'] ?? null,
+                'default_date_entree_en_vigueur' => Carbon::now(),
                 'est_obligatoire'=> false,
                 'est_actif'      => true,
                 'user_id'        => $userId,
@@ -50,6 +53,7 @@ class TypeCotisationPersonnaliseeService
                 'type_id' => $type->id,
                 'user_id' => $userId,
                 'code'    => $code,
+                'montant_paiement_mensuel' => $data['montant_paiement_mensuel'] ?? null,
             ]);
 
             return [
@@ -67,6 +71,51 @@ class TypeCotisationPersonnaliseeService
             return [
                 'success' => false,
                 'message' => 'Erreur lors de la création: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Suggestions de types de cotisations personnalisés déjà créés par
+     * d'autres utilisateurs (libellé/code/catégorie uniquement — jamais leur
+     * montant ni leur description, propres à chacun). Sert à proposer une
+     * saisie cohérente sans dupliquer les informations communes : choisir une
+     * suggestion crée toujours une nouvelle ligne pour l'utilisateur courant,
+     * sans jamais modifier le type d'origine.
+     */
+    public function suggestionsTypesPersonnalises(string $userId): array
+    {
+        try {
+            $suggestions = TypeCotisation::whereNotNull('user_id')
+                ->where('user_id', '!=', $userId)
+                ->where('est_actif', true)
+                ->select('code', 'libelle', 'categorie')
+                ->get()
+                ->unique('code')
+                ->sortBy('libelle')
+                ->values()
+                ->map(fn (TypeCotisation $type) => [
+                    'code'      => $type->code,
+                    'libelle'   => $type->libelle,
+                    'categorie' => $type->categorie,
+                ]);
+
+            return [
+                'success' => true,
+                'message' => 'Suggestions récupérées avec succès',
+                'data'    => $suggestions,
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors du listage des suggestions de types personnalisés', [
+                'user_id' => $userId,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage(),
+                'data'    => [],
             ];
         }
     }
@@ -197,6 +246,14 @@ class TypeCotisationPersonnaliseeService
 
             if (array_key_exists('est_actif', $data)) {
                 $champsAMettreAJour['est_actif'] = (bool) $data['est_actif'];
+            }
+
+            if (array_key_exists('valeur_par_defaut', $data)) {
+                $champsAMettreAJour['default_valeur'] = $data['valeur_par_defaut'];
+            }
+
+            if (array_key_exists('montant_paiement_mensuel', $data)) {
+                $champsAMettreAJour['montant_paiement_mensuel'] = $data['montant_paiement_mensuel'];
             }
 
             if (empty($champsAMettreAJour)) {

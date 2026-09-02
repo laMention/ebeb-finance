@@ -7,6 +7,9 @@ use App\Http\Controllers\BaseController;
 use App\Http\Requests\AjoutDocumentKYCRequest;
 use App\Http\Requests\UpdateCodePinRequest;
 use App\Http\Requests\UpdateProfilRequest;
+use App\Http\Requests\VerifierCodePinRequest;
+use App\Http\Requests\VerifierOtpReinitialisationPinRequest;
+use App\Http\Requests\ReinitialiserCodePinRequest;
 use App\Http\Resources\UserResource;
 use App\Services\NotificationService;
 use App\Services\UserService;
@@ -64,6 +67,99 @@ class UserController extends BaseController
             }
 
             return $this->sendResponse([], 'Code PIN mis à jour avec succès.');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Déverrouillage de l'application : vérifie le code PIN de l'utilisateur
+     * déjà authentifié, sans le modifier ni exiger un nouvel OTP — la session
+     * (jeton Sanctum) reste valide tout du long.
+     */
+    public function verifierCodePin(VerifierCodePinRequest $request)
+    {
+        try {
+            $valide = $this->userService->verifierCodePin($request->user(), $request->validated()['code_pin']);
+
+            if (!$valide) {
+                // 400, pas 401 : un 401 est interprété côté mobile comme une
+                // session expirée et déclenche une déconnexion globale, alors
+                // qu'ici la session (jeton Sanctum) reste valide.
+                return $this->sendError('Code PIN incorrect.', [], 400);
+            }
+
+            return $this->sendResponse([], 'Code PIN vérifié.');
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Code PIN oublié — étape 1 : envoie un code de vérification (OTP) à
+     * l'adresse email de l'utilisateur déjà authentifié.
+     */
+    public function demanderReinitialisationCodePin(Request $request)
+    {
+        try {
+            $resultat = $this->userService->demanderReinitialisationCodePin($request->user());
+
+            if (!$resultat['success']) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+
+            return $this->sendResponse([], $resultat['message']);
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Code PIN oublié — étape 2 : vérifie le code de vérification reçu.
+     */
+    public function verifierOtpReinitialisationCodePin(VerifierOtpReinitialisationPinRequest $request)
+    {
+        try {
+            $resultat = $this->userService->verifierOtpReinitialisationCodePin(
+                $request->user(),
+                $request->validated()['code_otp'],
+            );
+
+            if (!$resultat['success']) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+
+            return $this->sendResponse([], $resultat['message']);
+
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Code PIN oublié — étape 3 : définit le nouveau code PIN (uniquement
+     * accessible après vérification OTP réussie), déverrouille l'application
+     * et notifie l'utilisateur.
+     */
+    public function reinitialiserCodePin(ReinitialiserCodePinRequest $request)
+    {
+        try {
+            $user = $request->user();
+            $resultat = $this->userService->reinitialiserCodePin(
+                $user,
+                $request->validated()['nouveau_code_pin'],
+            );
+
+            if (!$resultat['success']) {
+                return $this->sendError($resultat['message'], [], 400);
+            }
+
+            $this->notificationService->notifierCodePinReinitialise($user);
+
+            return $this->sendResponse([], 'Code PIN réinitialisé avec succès.');
 
         } catch (\Exception $e) {
             return $this->throw($e);

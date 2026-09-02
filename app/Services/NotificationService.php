@@ -33,16 +33,16 @@ class NotificationService
                 ];
             }
 
-            // Préparer le contenu
-            $contenuJson = json_encode($contenu);
-            
-            // Créer la notification dans la base de données
+            // Créer la notification dans la base de données — `contenu` est
+            // casté `array` sur le modèle : lui passer déjà un tableau (pas
+            // une chaîne JSON pré-encodée, qui serait alors ré-encodée une
+            // seconde fois par le cast et rendrait le contenu illisible).
             $notification = Notification::create([
                 'user_id'    => $userId,
                 'canal'      => mettre_en_majuscule($canal),
                 'type'       => mettre_en_majuscule($type),
                 'titre'      => $contenu['titre'] ?? null,
-                'contenu'    => $contenuJson,
+                'contenu'    => $contenu,
                 'est_envoye' => false,
                 'est_lu'     => false,
                 'envoye_le'  => $immediat ? Carbon::now() : null,
@@ -435,6 +435,40 @@ class NotificationService
         $this->envoyerNotification($user->id, 'IN_APP', 'REPORT_COTISATION', [
             'titre'   => 'Report de cotisation',
             'message' => "Votre objectif annuel étant atteint, un montant de {$this->fcfa($montant)} est désormais enregistré comme avance sur votre cotisation {$libelleCotisation} pour {$prochaineAnnee}.",
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Support / tickets
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function notifierTicketResolu(User $user, string $reference, ?string $commentaire = null): void
+    {
+        $message = "Votre signalement {$reference} a été résolu par notre équipe.";
+        if ($commentaire) {
+            $message .= " Note de l'équipe support : {$commentaire}";
+        }
+
+        $this->envoyerNotification($user->id, 'IN_APP', 'TICKET_RESOLU', [
+            'titre'   => 'Votre signalement a été résolu',
+            'message' => $message,
+            'sujet'   => 'Résolution de votre signalement — ' . config('app.name'),
+            'reference' => $reference,
+        ]);
+    }
+
+    /**
+     * Prévient l'utilisateur que son code PIN vient d'être réinitialisé
+     * (parcours « code PIN oublié », après vérification OTP réussie) — un
+     * signal de sécurité, pas seulement une confirmation de confort.
+     */
+    public function notifierCodePinReinitialise(User $user): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'CODE_PIN_REINITIALISE', [
+            'titre'   => 'Code PIN réinitialisé',
+            'message' => 'Votre code PIN vient d\'être réinitialisé. Si vous n\'êtes pas à l\'origine de cette '
+                . 'action, contactez immédiatement le support.',
+            'sujet'   => 'Réinitialisation de votre code PIN — ' . config('app.name'),
         ]);
     }
 

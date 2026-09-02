@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'partenaires_financier_id',
     'periode_debut', 'periode_fin', 'date_execution',
     'motif_annulation', 'annule_par',
+    'transmission_statut', 'transmission_reponse', 'transmission_date',
+    'donnees_transmises', 'donnees_checksum',
 ])]
 class Reversement extends Model
 {
@@ -30,14 +32,22 @@ class Reversement extends Model
     const STATUT_ANNULE     = 'ANNULE';
     const STATUT_ECHEC      = 'ECHEC';
 
+    // Statuts de transmission au partenaire
+    const TRANSMISSION_NON_TRANSMIS = 'NON_TRANSMIS';
+    const TRANSMISSION_TRANSMIS     = 'TRANSMIS';
+    const TRANSMISSION_ECHEC        = 'ECHEC';
+
     protected function casts(): array
     {
         return [
-            'montant_total'    => 'decimal:2',
-            'date_reversement' => 'datetime',
-            'date_execution'   => 'datetime',
-            'periode_debut'    => 'date',
-            'periode_fin'      => 'date',
+            'montant_total'        => 'decimal:2',
+            'date_reversement'     => 'datetime',
+            'date_execution'       => 'datetime',
+            'periode_debut'        => 'date',
+            'periode_fin'          => 'date',
+            'transmission_reponse' => 'array',
+            'transmission_date'    => 'datetime',
+            'donnees_transmises'   => 'array',
         ];
     }
 
@@ -62,5 +72,10 @@ class Reversement extends Model
     public function reversementOperations(): HasMany
     {
         return $this->hasMany(ReversementOperation::class);
+    }
+
+    public function cotisations(): HasMany
+    {
+        return $this->hasMany(Cotisation::class, 'reversement_id');
     }
 }

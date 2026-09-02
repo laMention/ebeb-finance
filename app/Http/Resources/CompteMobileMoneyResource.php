@@ -25,6 +25,7 @@ class CompteMobileMoneyResource extends JsonResource
                 'logo'      => $this->moyen_paiement->logo
                     ? storage_public_path($this->moyen_paiement->logo)
                     : null,
+                'couleur'   => $this->moyen_paiement->couleur,
             ]),
 
             'qrcode' => $this->whenLoaded('qrcode_paiement', fn () =>

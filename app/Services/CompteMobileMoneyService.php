@@ -16,7 +16,8 @@ class CompteMobileMoneyService
         try {
             $comptes = CompteMobileMoney::where('user_id', $user->id)
                 ->with(['moyen_paiement', 'qrcode_paiement'])
-                ->orderBy('created_at', 'desc')
+                ->orderByDesc('est_principal')
+                ->orderByDesc('created_at')
                 ->get();
 
             return [
@@ -65,7 +66,11 @@ class CompteMobileMoneyService
             }
 
             $numeroCompte = $data['numero_compte'] ?? $user->telephone;
-            $estPrincipal = (bool) $data['est_principal'] ??  $moyen->par_defaut;
+            // `(bool) $data['est_principal'] ?? ...` lève « Undefined array
+            // key » quand la clé est absente : le cast s'applique avant que
+            // `??` ne puisse intercepter l'accès manquant. Il faut coalescer
+            // d'abord, caster ensuite.
+            $estPrincipal = (bool) ($data['est_principal'] ?? $moyen->par_defaut);
 
             if (empty($numeroCompte)) {
                 return [

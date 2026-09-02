@@ -6,6 +6,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -25,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'        => PermissionMiddleware::class,
             'role_or_permission'=> RoleOrPermissionMiddleware::class,
             'admin.perm'        => \App\Http\Middleware\CheckAdminPermission::class,
+            'compte.actif'      => \App\Http\Middleware\VerificationStatutCompteUtilisateurMiddleware::class,
+            'plateforme.actif'  => \App\Http\Middleware\PlatformStatusMiddleware::class,
+            'abilities'         => CheckAbilities::class,
+            'ability'           => CheckForAnyAbility::class,
         ]);
 
         $middleware->web(append: [
@@ -32,6 +38,11 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
+        // Limiteur de débit global sur toute l'API (voir AppServiceProvider::
+        // configureRateLimiting) — aucune route n'était protégée par défaut
+        // en dehors des `throttle:X,Y` explicites déjà posés sur l'auth.
+        $middleware->throttleApi();
 
         $middleware->api(append: [
             \App\Http\Middleware\SecurityHeaders::class,

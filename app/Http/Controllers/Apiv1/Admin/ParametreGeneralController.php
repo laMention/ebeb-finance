@@ -23,7 +23,13 @@ class ParametreGeneralController extends BaseController
             'logo_principal_url' => $p->logo_principal_url,
             'logo_favicon_url'   => $p->logo_favicon_url,
             'slogan'             => $p->slogan,
-            'icone_application_url'             => $p->icone_application_url
+            'icone_application_url'             => $p->icone_application_url,
+            // Coordonnées affichées par l'écran « Support » du mobile —
+            // modifiables ici sans mise à jour de l'application.
+            'email_contact'      => $p->email_contact,
+            'telephone_contact'  => $p->telephone_contact,
+            'whatsapp'           => $p->whatsapp,
+            'site_web'           => $p->site_web,
         ], 'Informations publiques de la plateforme.');
     }
 

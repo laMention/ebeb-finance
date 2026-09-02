@@ -93,12 +93,26 @@ class AdminNotificationService
 
     private function genererMotDePasseTemporaire(): string
     {
-        // 12 caractères : lettres (maj/min) + chiffres + symboles simples
-        $jeu = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
-        return implode('', array_map(
-            fn() => $jeu[random_int(0, strlen($jeu) - 1)],
-            range(1, 12)
-        ));
+        $upper   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $lower   = 'abcdefghijklmnopqrstuvwxyz';
+        $digits  = '0123456789';
+        $special = '!@#$%^&*()-_=+[]{}|;:,.<>?';
+        $all     = $upper . $lower . $digits . $special;
+
+        // Garantit au moins un caractère de chaque classe (politique Fort)
+        $chars = [
+            $upper[random_int(0, strlen($upper) - 1)],
+            $lower[random_int(0, strlen($lower) - 1)],
+            $digits[random_int(0, strlen($digits) - 1)],
+            $special[random_int(0, strlen($special) - 1)],
+        ];
+
+        for ($i = count($chars); $i < 16; $i++) {
+            $chars[] = $all[random_int(0, strlen($all) - 1)];
+        }
+
+        shuffle($chars);
+        return implode('', $chars);
     }
 
     private function journaliser(

@@ -5,9 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'type_cotisation_id', 'mois', 'annee', 'montant_verse', 'montant_objectif', 'montant_restant', 'statut', 'numero_adherent', 'date_paiement', 'date_debut', 'date_fin'])]
+#[Fillable([
+    'user_id', 'type_cotisation_id', 'mois', 'annee', 'montant_verse', 'montant_objectif',
+    'montant_restant', 'statut', 'numero_adherent', 'date_paiement', 'date_debut', 'date_fin',
+    'reverse', 'reverse_le', 'reversement_id',
+])]
 class Cotisation extends Model
 {
     use SoftDeletes, HasUuids;
@@ -23,6 +28,8 @@ class Cotisation extends Model
             'date_debut'       => 'date',
             'date_fin'         => 'date',
             'date_paiement'    => 'datetime',
+            'reverse'          => 'boolean',
+            'reverse_le'       => 'datetime',
         ];
     }
 
@@ -34,5 +41,10 @@ class Cotisation extends Model
     public function typeCotisation()
     {
         return $this->belongsTo(TypeCotisation::class);
+    }
+
+    public function reversement(): BelongsTo
+    {
+        return $this->belongsTo(Reversement::class);
     }
 }

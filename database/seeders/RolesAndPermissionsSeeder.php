@@ -61,6 +61,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'create' => 'Créer un type de cotisation',
                     'update' => 'Modifier un type de cotisation',
                     'delete' => 'Supprimer un type de cotisation',
+                    'export' => 'Exporter les types de cotisation',
                 ],
             ],
 
@@ -141,6 +142,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'create' => 'Créer un moyen de paiement',
                     'update' => 'Modifier un moyen de paiement',
                     'delete' => 'Supprimer un moyen de paiement',
+                    'export' => 'Exporter les moyens de paiement',
                 ],
             ],
 
@@ -174,6 +176,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'archive' => 'Archiver un administrateur',
                     'restore' => 'Restaurer un administrateur',
                     'assign'  => 'Assigner des rôles à un administrateur',
+                    'export'  => 'Exporter la liste des administrateurs',
                 ],
             ],
 
@@ -216,6 +219,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'view'   => 'Consulter les alertes système',
                     'update' => 'Modifier une alerte',
                     'delete' => 'Supprimer une alerte',
+                    'export' => 'Exporter les alertes système',
                 ],
             ],
 
@@ -256,6 +260,25 @@ class RolesAndPermissionsSeeder extends Seeder
                     'delete'  => 'Supprimer une page',
                     'archive' => 'Archiver une page',
                     'restore' => 'Restaurer une page',
+                ],
+            ],
+
+            'tickets' => [
+                'label' => 'Support — Tickets & Réclamations',
+                'permissions' => [
+                    'view'   => 'Consulter les tickets',
+                    'update' => 'Modifier le statut/la sévérité d\'un ticket',
+                    'delete' => 'Supprimer un ticket',
+                ],
+            ],
+
+            'faq' => [
+                'label' => 'Support — FAQ',
+                'permissions' => [
+                    'view'   => 'Consulter la FAQ',
+                    'create' => 'Créer une entrée FAQ',
+                    'update' => 'Modifier une entrée FAQ',
+                    'delete' => 'Supprimer une entrée FAQ',
                 ],
             ],
 
@@ -351,6 +374,8 @@ class RolesAndPermissionsSeeder extends Seeder
                     'mobile-money.view',
                     'alertes.view', 'alertes.update',
                     'notifications-config.view',
+                    'tickets.view', 'tickets.update',
+                    'faq.view',
                 ],
             ],
         ];

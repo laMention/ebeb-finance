@@ -18,6 +18,8 @@ class StoreTypeCotisationPersonnaliseeRequest extends FormRequest
             'code'        => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9_]+$/'],
             'categorie'   => ['sometimes', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
+            // Source de vérité du suivi de conformité pour toute cotisation personnalisée — toujours requis.
+            'montant_paiement_mensuel' => ['required', 'numeric', 'min:0'],
         ];
     }
 
@@ -37,6 +39,9 @@ class StoreTypeCotisationPersonnaliseeRequest extends FormRequest
             'categorie.max'     => 'La catégorie ne peut pas dépasser 100 caractères.',
 
             'description.string' => 'La description doit être une chaîne de caractères.',
+            'montant_paiement_mensuel.required' => 'Le montant du paiement mensuel est obligatoire pour une cotisation personnalisée (source de vérité du suivi de conformité).',
+            'montant_paiement_mensuel.numeric' => 'Le montant du paiement mensuel doit être un nombre.',
+            'montant_paiement_mensuel.min' => 'Le montant du paiement mensuel doit être supérieure ou égale à 0.',
         ];
     }
 }

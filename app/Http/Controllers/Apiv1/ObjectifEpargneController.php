@@ -18,11 +18,15 @@ class ObjectifEpargneController extends BaseController
     {
         $objectif = $this->objectifEpargneService->obtenirObjectifActif($request->user());
 
-        if (!$objectif) {
-            return $this->sendError("Aucun objectif d'épargne configuré.", [], 404);
-        }
-
-        return $this->sendResponse(new ObjectifEpargneResource($objectif), "Objectif d'épargne récupéré avec succès.");
+        // Ne pas configurer d'objectif d'épargne est un état normal (l'épargne
+        // automatique est optionnelle) — pas une erreur : le mobile doit
+        // pouvoir afficher un état vide propre plutôt qu'un écran d'erreur.
+        return $this->sendResponse(
+            $objectif ? new ObjectifEpargneResource($objectif) : null,
+            $objectif
+                ? "Objectif d'épargne récupéré avec succès."
+                : "Aucun objectif d'épargne configuré."
+        );
     }
 
     public function store(StoreObjectifEpargneRequest $request)

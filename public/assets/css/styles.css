@@ -1,0 +1,65 @@
+:root{
+    --violet:#553B9E;
+    --bleu:#22549D;
+    --terracotta:#CE5A55;
+    --ivoire:#F7F4FB;
+    --encre:#1A1530;
+  }
+  *{font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--ivoire); color:var(--encre);}
+
+  .font-display{font-family:'Trebuchet MS', sans-serif; letter-spacing:-0.01em;}
+
+  .grad-hero{
+    background: radial-gradient(120% 140% at 15% 0%, #6B4DC4 0%, var(--violet) 38%, var(--bleu) 100%);
+  }
+  .grad-cta{
+    background: linear-gradient(120deg, var(--violet) 0%, var(--bleu) 100%);
+  }
+  .text-grad{
+    background: linear-gradient(95deg, #F0E9FF 0%, #BFD2F0 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+
+  .btn-store{
+    display:inline-flex; align-items:center; gap:.65rem;
+    background:#fff; color:var(--encre);
+    border-radius:14px; padding:.7rem 1.3rem;
+    box-shadow:0 8px 24px -10px rgba(0,0,0,.4);
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .btn-store:hover{ transform:translateY(-3px); box-shadow:0 14px 30px -10px rgba(0,0,0,.45); }
+
+  .chip{
+    border-radius:999px; padding:.35rem .9rem; font-size:.78rem; font-weight:600;
+  }
+
+  .phone-frame{
+    border-radius:2.4rem;
+    box-shadow: 0 30px 70px -20px rgba(34,28,80,.55), 0 0 0 1px rgba(255,255,255,.08) inset;
+    border: 6px solid #0E0B1E;
+  }
+
+  .card-hover{ transition: transform .3s ease, box-shadow .3s ease; }
+  .card-hover:hover{ transform:translateY(-6px); box-shadow:0 24px 48px -18px rgba(85,59,158,.28); }
+
+  .split-line{ stroke-dasharray: 6 6; }
+
+  .reveal{ opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  details > summary{ list-style:none; cursor:pointer; }
+  details > summary::-webkit-details-marker{ display:none; }
+  details[open] .chevron{ transform:rotate(180deg); }
+  .chevron{ transition: transform .25s ease; }
+
+  /* Signature: revenue-split rail */
+  .rail{
+    position:relative; height:6px; border-radius:999px; background:#E4DEF7; overflow:hidden;
+  }
+  .rail > span{ position:absolute; top:0; bottom:0; left:0; border-radius:999px; }
+
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ opacity:1 !important; transform:none !important; transition:none !important; }
+  }

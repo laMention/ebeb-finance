@@ -20,10 +20,17 @@ class StoreTypeCotisationRequest extends FormRequest
         return [
             'libelle'         => ['required', 'string', 'max:255'],
             'code'            => ['required', 'string', 'max:50', 'unique:type_cotisations,code'],
-            'categorie'       => ['required', 'string', 'max:100'],
-            'est_obligatoire' => ['boolean'],
-            'est_actif'       => ['boolean'],
-            'description'     => ['nullable', 'string'],
+            'categorie'                       => ['required', 'string', 'max:100'],
+            'est_obligatoire'                 => ['boolean'],
+            'est_actif'                       => ['boolean'],
+            'default_type_calcul'             => ['nullable', 'string', 'in:FIXE,POURCENTAGE'],
+            'default_valeur'                  => ['nullable', 'numeric', 'min:0'],
+            'default_est_actif'               => ['nullable', 'boolean'],
+            'default_date_entree_en_vigueur'  => ['nullable', 'date'],
+            'description'                     => ['nullable', 'string'],
+            // Source de vérité du suivi de conformité pour AMU (et les cotisations personnalisées,
+            // validées séparément via StoreTypeCotisationPersonnaliseeRequest) — toujours requis pour AMU.
+            'montant_paiement_mensuel'        => ['required_if:categorie,AMU', 'nullable', 'numeric', 'min:0'],
         ];
     }
 
@@ -45,8 +52,16 @@ class StoreTypeCotisationRequest extends FormRequest
 
             'est_obligatoire.boolean' => 'Le champ est_obligatoire doit être vrai ou faux.',
             'est_actif.boolean'       => 'Le champ est_actif doit être vrai ou faux.',
+            'default_type_calcul.in'  => 'Le type de calcul par défaut doit être FIXE ou POURCENTAGE.',
+            'default_valeur.numeric'  => 'La valeur par défaut doit être un nombre.',
+            'default_valeur.min'      => 'La valeur par défaut doit être positive.',
+            'default_est_actif.boolean' => 'Le champ default_est_actif doit être vrai ou faux.',
+            'default_date_entree_en_vigueur.date' => 'La date d\'entrée en vigueur doit être une date valide.',
 
             'description.string' => 'La description doit être une chaîne de caractères.',
+            'montant_paiement_mensuel.numeric' => 'Le montant du paiement mensuel doit être un nombre.',
+            'montant_paiement_mensuel.min' => 'Le montant du paiement mensuel doit être supérieure ou égale à 0.',
+            'montant_paiement_mensuel.required_if' => 'Le montant du paiement mensuel est obligatoire pour une cotisation AMU (source de vérité du suivi de conformité).',
         ];
     }
 }

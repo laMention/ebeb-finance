@@ -74,7 +74,7 @@ class TypeCotisationController extends BaseController
     public function update(TypeCotisation $typeCotisation, UpdateTypeCotisationRequest $request): JsonResponse
     {
         try {
-            $avant    = $typeCotisation->only(['nom', 'montant', 'est_actif', 'est_obligatoire']);
+            $avant    = $typeCotisation->only(['nom', 'montant', 'est_actif', 'est_obligatoire','default_valeur']);
             $resultat = $this->typeCotisationService->modifierTypeCotisation($typeCotisation, $request->validated());
 
             if ($resultat['success'] === false) {
@@ -94,7 +94,7 @@ class TypeCotisationController extends BaseController
     public function destroy(TypeCotisation $typeCotisation): JsonResponse
     {
         try {
-            $avant    = $typeCotisation->only(['nom', 'montant']);
+            $avant    = $typeCotisation->only(['nom', 'montant', 'default_valeur']);
             $resultat = $this->typeCotisationService->supprimerTypeCotisation($typeCotisation);
 
             if ($resultat['success'] === false) {

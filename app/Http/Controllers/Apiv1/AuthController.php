@@ -98,18 +98,34 @@ class AuthController extends BaseController
 
     public function renvoyerCodeOtp(RenvoyerCodeOtpRequest $request)
     {
-        $validated = $request->validated();
+        try {
+            $validated = $request->validated();
 
-        $user = User::where('telephone', $validated['telephone'])->first();
+            $user = User::where('telephone', $validated['telephone'])->first();
 
-        $data = $this->otpService->generateAndSend($user);
+            if (!$user) {
+                // Message générique pour éviter l'énumération de numéros (SEC-015)
+                // — même protection que connexion(), absente ici jusqu'alors :
+                // sans elle, un numéro non enregistré provoquait un crash
+                // (accès à ->id sur null) au lieu de ce message, révélant par
+                // la différence de réponse quels numéros sont inscrits.
+                return $this->sendResponse(
+                    ['otp_envoi' => ['success' => true, 'message' => 'Si ce numéro est enregistré, vous recevrez un code de vérification.']],
+                    'Si ce numéro est enregistré, vous recevrez un code de vérification.'
+                );
+            }
 
-        if (!$data['success']) {
-            return $this->sendError($data['message'],$data,400);
-        }  
+            $data = $this->otpService->generateAndSend($user);
 
-        return $this->sendResponse($data,'Un nouveau code OTP a été envoyé');
+            if (!$data['success']) {
+                return $this->sendError($data['message'], $data, 400);
+            }
 
+            return $this->sendResponse($data, 'Un nouveau code OTP a été envoyé');
+
+        } catch (\Throwable $th) {
+            return $this->throw($th);
+        }
     }
 
     // Définition du code PIN

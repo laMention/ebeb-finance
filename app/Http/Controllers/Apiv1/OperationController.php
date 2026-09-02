@@ -34,8 +34,14 @@ class OperationController extends BaseController
                 $query->where('type_operation', $request->input('type'));
             }
 
-            if ($request->has('types')) {
-                $query->whereIn('type_operation', (array) $request->input('types'));
+            // Ni `has()` ni `filled()` ne détectent un tableau vide (la
+            // vérification "empty string" de `filled()` ignore justement les
+            // valeurs de type array) : le client envoie systématiquement
+            // `types: []` dès qu'un autre filtre est actif, et un
+            // `whereIn(..., [])` exclurait alors toutes les opérations.
+            $types = (array) $request->input('types', []);
+            if (!empty($types)) {
+                $query->whereIn('type_operation', $types);
             }
 
             if ($request->filled('sens')) {

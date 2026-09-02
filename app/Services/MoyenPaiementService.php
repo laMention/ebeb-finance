@@ -100,6 +100,7 @@ class MoyenPaiementService
                 'libelle'    => mettre_en_majuscule($data['libelle']),
                 'code'       => $code,
                 'logo'       => $data['logo'] ?? null,
+                'couleur'    => $data['couleur'] ?? null,
                 'operateur'  => mettre_en_majuscule($data['operateur']),
                 'par_defaut' => $parDefaut,
                 'est_actif'  => (bool) ($data['est_actif'] ?? true),
@@ -156,6 +157,10 @@ class MoyenPaiementService
 
             if (array_key_exists('logo', $data)) {
                 $champsAMettreAJour['logo'] = $data['logo'];
+            }
+
+            if (array_key_exists('couleur', $data)) {
+                $champsAMettreAJour['couleur'] = $data['couleur'];
             }
 
             if (array_key_exists('operateur', $data)) {

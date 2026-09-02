@@ -3,21 +3,26 @@
 namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
+use App\Http\Resources\DeclarationRevenuResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AdminUserService;
 use App\Services\AlerteGenerator;
 use App\Services\AuditLogger;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class GestionUtilisateurController extends BaseController
 {
     protected AdminUserService $adminUserService;
+    protected NotificationService $notificationService;
 
-    public function __construct(AdminUserService $adminUserService)
+
+    public function __construct(AdminUserService $adminUserService, NotificationService $notificationService)
     {
         $this->adminUserService = $adminUserService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -204,6 +209,23 @@ class GestionUtilisateurController extends BaseController
 
             AuditLogger::log('USER.UPDATE_INFO', $request->user(), 'utilisateurs', $user->id, $avant, $data);
 
+            // Envoyer une notification à l'utilisateur si les informations administratives ont été modifiées
+            if ($avant['numero_cnps'] !== $data['numero_cnps'] || $avant['numero_cmu'] !== $data['numero_cmu']) {
+                // Enregistrer une notification pour l'utilisateur
+                $this->notificationService->envoyerNotification(
+                    $user->id,
+                    'in-app',
+                    'MISE À JOUR DES INFORMATIONS ADMINISTRATIVES',
+                    [
+                        'titre'   => 'Mise à jour des informations administratives (CNPS/CMU)',
+                        'message' => 'Vos informations administratives ont été mises à jour avec succès.',
+                        'sujet'   => 'Mise à jour des informations administratives — ' . config('app.name'),
+                    ],
+                    true
+                );
+
+            }
+
             return $this->sendResponse(['user' => $resultat['user']], $resultat['message']);
 
         } catch (\Exception $e) {
@@ -228,6 +250,39 @@ class GestionUtilisateurController extends BaseController
 
             return $this->sendResponse([], $resultat['message']);
 
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
+    }
+
+    /**
+     * Met à jour la déclaration de revenu (source de vérité des objectifs de cotisation CNPS/AMU).
+     * PUT /administration/panel-admin/utilisateurs/{user}/declaration-revenu
+     */
+    public function mettreAJourDeclarationRevenu(User $user, Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'montant_revenu'                            => 'required|numeric|min:0',
+                'montant_cotisation_regime_base'            => 'required|numeric|min:0',
+                'montant_cotisation_regime_complementaire'  => 'required|numeric|min:0',
+                'montant_cotisation_mensuelle'               => 'required|numeric|min:0',
+                'montant_cotisation_trimestrielle'           => 'required|numeric|min:0',
+            ]);
+
+            $avant    = $user->declarationRevenu?->only(array_keys($validated));
+            $resultat = $this->adminUserService->mettreAJourDeclarationRevenu($user, $validated);
+
+            AuditLogger::log('DECLARATION_REVENU.UPDATE', $request->user(), 'declaration_revenus',
+                (string) $resultat['declaration']->id, $avant, $validated);
+
+            return $this->sendResponse(
+                ['declaration' => new DeclarationRevenuResource($resultat['declaration'])],
+                $resultat['message']
+            );
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->sendError('Données invalides.', $e->errors(), 422);
         } catch (\Exception $e) {
             return $this->throw($e);
         }

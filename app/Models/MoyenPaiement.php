@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['libelle','code','logo','operateur','par_defaut','est_actif'])]
+#[Fillable(['libelle','code','logo','couleur','operateur','par_defaut','est_actif'])]
 class MoyenPaiement extends Model
 {
     use HasUuids, SoftDeletes;

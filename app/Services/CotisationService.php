@@ -145,20 +145,28 @@ class CotisationService
 
     public function calculerObjectifMensuel(TypeCotisation $type, ?DeclarationRevenu $declaration): string
     {
-        if (!$declaration) return '0.00';
-
         $code      = strtoupper($type->code ?? '');
         $categorie = strtoupper($type->categorie ?? '');
 
         if (str_contains($code, 'CNPS') || str_contains($categorie, 'CNPS')) {
-            return bcdiv((string) $declaration->montant_cotisation_regime_base, '12', 2);
+            // Objectif mensuel CNPS = montant_cotisation_mensuelle déclaré (source de vérité).
+            // L'objectif annuel (mensuelle × 12) n'est pas stocké : il ressort naturellement
+            // de la somme des 12 objectifs mensuels des Cotisation de l'année.
+            if (!$declaration) return '0.00';
+            return number_format((float) $declaration->montant_cotisation_mensuelle, 2, '.', '');
         }
 
-        if (str_contains($code, 'AMU') || str_contains($categorie, 'AMU')) {
-            return bcdiv((string) $declaration->montant_cotisation_mensuelle, '2', 2);
+        // AMU et cotisations personnalisées : source de vérité = TypeCotisation.montant_paiement_mensuel
+        // (ne dépend pas de declaration_revenus — sert uniquement au suivi de conformité, pas au calcul
+        // du prélèvement lui-même, qui reste piloté par ReglePrelevement/default_valeur).
+        if (!$type->montant_paiement_mensuel) {
+            \Log::warning('cotisation.objectif_mensuel_non_configure', [
+                'type_cotisation_id' => $type->id, 'code' => $type->code, 'categorie' => $type->categorie,
+            ]);
+            return '0.00';
         }
 
-        return '0.00';
+        return number_format((float) $type->montant_paiement_mensuel, 2, '.', '');
     }
 
     private function calculerStatut(string $verse, string $objectif): string
@@ -167,6 +175,41 @@ class CotisationService
         if (bccomp($verse,    '0.00', 2) <= 0) return 'NON_A_JOUR';
         if (bccomp($verse, $objectif, 2) >= 0) return 'OBJECTIF_ATTEINT';
         return 'EN_COURS';
+    }
+
+    /**
+     * Recalcule l'objectif et le statut d'une Cotisation à partir de la déclaration de revenu
+     * actuelle de l'utilisateur — appelé après un reversement (avant transmission au partenaire)
+     * et après toute modification d'une DeclarationRevenu, pour ne jamais transmettre/afficher
+     * un objectif obsolète.
+     */
+    public function resynchroniserObjectif(Cotisation $cotisation): Cotisation
+    {
+        if ($cotisation->statut === 'REPORT') {
+            return $cotisation;
+        }
+
+        $type = $cotisation->typeCotisation ?? TypeCotisation::find($cotisation->type_cotisation_id);
+
+        if (!$type) {
+            return $cotisation;
+        }
+
+        // $declaration peut être null pour AMU/personnalisée : calculerObjectifMensuel()
+        // n'en a besoin que pour la branche CNPS.
+        $declaration = DeclarationRevenu::where('user_id', $cotisation->user_id)->first();
+        $objectif    = $this->calculerObjectifMensuel($type, $declaration);
+        $verse    = (string) $cotisation->montant_verse;
+        $restant  = bcsub($objectif, $verse, 2);
+        $restant  = bccomp($restant, '0.00', 2) > 0 ? $restant : '0.00';
+
+        $cotisation->update([
+            'montant_objectif' => $objectif,
+            'montant_restant'  => $restant,
+            'statut'           => $this->calculerStatut($verse, $objectif),
+        ]);
+
+        return $cotisation->fresh();
     }
 
     private function marquerObjectifAnnuelAtteint(User $user, string $typeCotisationId, int $annee): void

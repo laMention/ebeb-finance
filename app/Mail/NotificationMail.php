@@ -52,7 +52,7 @@ class NotificationMail extends Mailable
                 'user' => $this->user,
                 'type' => $this->type,
                 'titre' => $this->contenu['titre'] ?? 'ALERTE INFO ',
-                'message' => $this->contenu['message'] ?? '',
+                'corps' => $this->contenu['message'] ?? '',
                 'contenu' => $this->contenu
             ]
         );

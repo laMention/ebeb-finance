@@ -6,455 +6,598 @@ use Illuminate\Support\Facades\Route;
 
 //============================================ API FRONT =========================================
 
-Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
-    Route::post('inscription',[\App\Http\Controllers\Apiv1\AuthController::class,'inscription']);
-    Route::post('configurer-code-pin',[\App\Http\Controllers\Apiv1\AuthController::class,'definirCodePIN']);
-    Route::post('se-connecter',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
-    Route::post('valider-connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
+// Gate global — bloqué en MAINTENANCE / DESACTIVEE (le panel central reste hors de cette portée)
+Route::middleware('plateforme.actif')->group(function () {
 
-    Route::post('connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
+    Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
+        Route::post('inscription',[\App\Http\Controllers\Apiv1\AuthController::class,'inscription']);
+        Route::post('configurer-code-pin',[\App\Http\Controllers\Apiv1\AuthController::class,'definirCodePIN']);
+        Route::post('se-connecter',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
+        Route::post('valider-connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
 
-    // Routes OTP
-    Route::prefix('otp')->group(function () {
-        Route::post('verifier', [\App\Http\Controllers\Apiv1\AuthController::class, 'verificationOtp']);
-        Route::post('renvoyer', [\App\Http\Controllers\Apiv1\AuthController::class, 'renvoyerCodeOtp'])->middleware('throttle:3,1');
-        Route::post('confirmerConnexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
+        Route::post('connexion',[\App\Http\Controllers\Apiv1\AuthController::class,'connexion']);
+
+        // Routes OTP
+        Route::prefix('otp')->group(function () {
+            Route::post('verifier', [\App\Http\Controllers\Apiv1\AuthController::class, 'verificationOtp']);
+            Route::post('renvoyer', [\App\Http\Controllers\Apiv1\AuthController::class, 'renvoyerCodeOtp'])->middleware('throttle:3,1');
+            Route::post('confirmerConnexion',[\App\Http\Controllers\Apiv1\AuthController::class,'confirmerConnexion']);
+        });
     });
-});
 
-// Webhook paiements (public — validé par X-Webhook-Secret)
-Route::prefix('paiements')->group(function () {
-    Route::post('webhook', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'webhook']);
-});
+    // Webhook paiements (public — validé par X-Webhook-Secret)
+    Route::prefix('paiements')->group(function () {
+        Route::post('webhook', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'webhook']);
+    });
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('espace-utilisateur')->group(function () {
-        Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
-        Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
-        Route::patch('code-pin', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourCodePin']);
-        Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\UserController::class,'deconnexion']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('espace-utilisateur')->group(function () {
+            Route::get('details',[\App\Http\Controllers\Apiv1\UserController::class,'infosUtilisateurConnecte']);
+            // Modification du profil / informations personnelles — compte actif requis
+            // (tant que le compte est en attente de vérification, ces données ne
+            // doivent pas pouvoir être modifiées).
+            Route::middleware('compte.actif')->group(function () {
+                Route::patch('profil', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourProfil']);
+            });
+            Route::patch('code-pin', [\App\Http\Controllers\Apiv1\UserController::class, 'mettreAjourCodePin']);
+            // Déverrouillage de l'app (session déjà valide) — débit limité en plus
+            // du throttle global, un code PIN n'a que 6 chiffres.
+            Route::post('code-pin/verifier', [\App\Http\Controllers\Apiv1\UserController::class, 'verifierCodePin'])
+                ->middleware('throttle:8,1');
+            // Code PIN oublié : identité prouvée par OTP (envoyé par email),
+            // pas besoin de connaître l'ancien code PIN.
+            Route::prefix('code-pin/reinitialiser')->group(function () {
+                Route::post('demander-otp', [\App\Http\Controllers\Apiv1\UserController::class, 'demanderReinitialisationCodePin'])
+                    ->middleware('throttle:3,1');
+                Route::post('verifier-otp', [\App\Http\Controllers\Apiv1\UserController::class, 'verifierOtpReinitialisationCodePin'])
+                    ->middleware('throttle:8,1');
+                Route::post('/', [\App\Http\Controllers\Apiv1\UserController::class, 'reinitialiserCodePin']);
+            });
+            Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\UserController::class,'deconnexion']);
+            
+            // Paiements reçus
+            Route::prefix('paiements')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'index']);
+                Route::get('/{paiementId}', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'show']);
+            });
+
+            // Opérations / historique des transactions
+            Route::prefix('operations')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\OperationController::class, 'index']);
+                Route::get('/{operation}', [\App\Http\Controllers\Apiv1\OperationController::class, 'show']);
+            });
         
-        // Paiements reçus
-        Route::prefix('paiements')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'index']);
-            Route::get('/{paiementId}', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'show']);
+            // Règles de prélèvement
+            Route::prefix('regle-prelevements')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'index']);
+                Route::get('/types', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'types']);
+                Route::get('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'show']);
+
+                // Configuration des taux — accessible dès l'inscription, avant même
+                // que le compte soit actif (l'utilisateur définit ses préférences
+                // pendant que ses documents sont en cours de vérification).
+                Route::post('/configurer-regle-prelevement', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurerRegleTypeCotisation']);
+                Route::post('/configurer', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurer']);
+
+                // Autres mutations — compte actif requis
+                Route::middleware('compte.actif')->group(function () {
+                    Route::post('/reordonner', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'reordonner']);
+                    Route::delete('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'destroy']);
+                    Route::patch('/{reglePrelevement}/statut', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'basculerStatut']);
+                });
+            });
+
+            // Moyens de paiement actifs — utilisé pour choisir/rattacher un compte mobile money
+            Route::get('moyens-paiement', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'moyensPaiement']);
+
+            // Comptes Mobile Money utilisateur
+            Route::prefix('comptes-mobile-money')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'index']);
+
+                // Choix du compte principal — accessible dès l'inscription, avant
+                // même que le compte soit actif.
+                Route::post('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'store']);
+                Route::patch('/{compteMobileMoney}/principal', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'definirPrincipal']);
+            });
+
+            // Objectif d'épargne
+            Route::prefix('objectif-epargne')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'index']);
+
+                // Mutations — compte actif requis
+                Route::middleware('compte.actif')->group(function () {
+                    Route::post('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'store']);
+                    Route::patch('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'update']);
+                    Route::delete('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'destroy']);
+                });
+            });
+
+            // Types de cotisations personnalisés
+            Route::prefix('types-cotisation-personnalises')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
+                Route::get('/suggestions', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'suggestions']);
+                Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'show']);
+
+                // Mutations — compte actif requis
+                Route::middleware('compte.actif')->group(function () {
+                    Route::post('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'store']);
+                    Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'update']);
+                    Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'destroy']);
+                });
+            });
+
+            // Notifications
+            Route::prefix('notifications')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Apiv1\NotificationController::class, 'index']);
+                Route::get('/non-lues', [\App\Http\Controllers\Apiv1\NotificationController::class, 'nombreNonLues']);
+                Route::patch('/marquer-toutes-lues', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerToutesLues']);
+                Route::patch('/{notification}/lue', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerLue']);
+            });
+
+            // Condition générale active (consultation depuis l'application mobile)
+            Route::get('c:ondition-generale', [\App\Http\Controllers\Apiv1\ConditionGeneraleController::class, 'active']);
+
+            // Pages CMS publiées (Conditions générales, Avis de confidentialité...)
+            Route::get('pages/{type}', [\App\Http\Controllers\Apiv1\PageController::class, 'parType']);
+
+            // Support — signalement d'un problème par l'utilisateur
+            Route::post('support/signaler', [\App\Http\Controllers\Apiv1\SupportController::class, 'signaler']);
+
+            // Récapitulatif des prélèvements & solde disponible (P36)
+            Route::get('recapitulatif', [\App\Http\Controllers\Apiv1\RecapitulatifController::class, 'index']);
+
+            // Soldes globaux du portefeuille (solde_principal, solde_epargne)
+            Route::get('solde', [\App\Http\Controllers\Apiv1\SoldeController::class, 'index']);
+
         });
 
-        // Opérations / historique des transactions
-        Route::prefix('operations')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\OperationController::class, 'index']);
-            Route::get('/{operation}', [\App\Http\Controllers\Apiv1\OperationController::class, 'show']);
-        });
-    
-        // Règles de prélèvement
-        Route::prefix('regle-prelevements')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'index']);
-            Route::get('/types', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'types']);
-            Route::post('/configurer-regle-prelevement', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurerRegleTypeCotisation']);
-            Route::post('/configurer', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'configurer']);
-            Route::post('/reordonner', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'reordonner']);
-            Route::get('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'show']);
-            Route::delete('/{reglePrelevement}', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'destroy']);
-            Route::patch('/{reglePrelevement}/statut', [\App\Http\Controllers\Apiv1\ReglePrelevementController::class, 'basculerStatut']);
-        });
-
-        // Comptes Mobile Money utilisateur
-        Route::prefix('comptes-mobile-money')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'store']);
-            Route::patch('/{compteMobileMoney}/principal', [\App\Http\Controllers\Apiv1\CompteMobileMoneyController::class, 'definirPrincipal']);
-        });
-
-        // Objectif d'épargne
-        Route::prefix('objectif-epargne')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'store']);
-            Route::patch('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'update']);
-            Route::delete('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'destroy']);
-        });
-
-        // Types de cotisations personnalisés
-        Route::prefix('types-cotisation-personnalises')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'store']);
-            Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'show']);
-            Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'update']);
-            Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'destroy']);
-        });
-
-        // Notifications
-        Route::prefix('notifications')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Apiv1\NotificationController::class, 'index']);
-            Route::get('/non-lues', [\App\Http\Controllers\Apiv1\NotificationController::class, 'nombreNonLues']);
-            Route::patch('/marquer-toutes-lues', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerToutesLues']);
-            Route::patch('/{notification}/lue', [\App\Http\Controllers\Apiv1\NotificationController::class, 'marquerLue']);
-        });
-
+        
     });
 
-    
-});
+}); // fin gate plateforme.actif
 //============================================ /FIN API FRONT =========================================
 
 
 
 //============================================ API PANEL ADMINISTRATION =========================================
-Route::prefix('administration')->group(function () {
-    // Public — branding plateforme (sans authentification)
-    Route::get('public/infos-plateforme', [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'infosPubliques'])
-        ->middleware('throttle:60,1');
 
-    Route::prefix('auth')->middleware('throttle:5,1')->group(function () {
-        Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);
-    });
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::prefix('panel-admin')->group(function () {
-            Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'deconnexion']);
-            Route::get('recuperation-info-profil',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'recupererInfoProfil']);
-            Route::patch('profil',              [\App\Http\Controllers\Apiv1\Admin\AuthController::class, 'mettreAjourProfil']);
-            Route::patch('profil/mot-de-passe', [\App\Http\Controllers\Apiv1\Admin\AuthController::class, 'changerMotDePasse']);
-            Route::post('profil/photo',         [\App\Http\Controllers\Apiv1\Admin\AuthController::class, 'changerPhoto']);
-            Route::post('verifier-document',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'verificationDocument'])
-                ->middleware('admin.perm:kyc.update');
-            Route::post('mise-a-jour-document/{documentKYC}',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'mettreAjourDocument'])
-                ->middleware('admin.perm:kyc.update');
+// Gate global — bloqué en MAINTENANCE / DESACTIVEE (le panel central reste hors de cette portée)
+Route::middleware('plateforme.actif')->group(function () {
 
-            // Validation KYC
-            Route::prefix('kyc')->middleware('admin.perm:kyc.view')->group(function () {
-                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'index']);
-                Route::patch('/{documentKYC}/approuver', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'approuver'])
-                    ->middleware('admin.perm:kyc.validate');
-                Route::patch('/{documentKYC}/rejeter', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'rejeter'])
-                    ->middleware('admin.perm:kyc.reject');
-            });
+    Route::prefix('administration')->group(function () {
+        // Public — branding plateforme (sans authentification)
+        Route::get('public/infos-plateforme', [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'infosPubliques'])
+            ->middleware('throttle:60,1');
 
-            // Gestion des utilisateurs (travailleurs indépendants)
-            Route::prefix('utilisateurs')->middleware('admin.perm:utilisateurs.view')->group(function () {
-                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'index']);
-                Route::get('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'show']);
-                Route::patch('/{user}/suspendre', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'suspendre'])
-                    ->middleware('admin.perm:utilisateurs.update');
-                Route::patch('/{user}/reactiver', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reactiver'])
-                    ->middleware('admin.perm:utilisateurs.update');
-                Route::patch('/{user}/infos-admin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'mettreAjourInfosAdmin'])
-                    ->middleware('admin.perm:utilisateurs.update');
-                Route::patch('/{user}/reinitialiser-pin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reinitialiserCodePin'])
-                    ->middleware('admin.perm:utilisateurs.update');
-                Route::get('/{user}/cotisations', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'cotisations']);
-                Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver'])
-                    ->middleware('admin.perm:utilisateurs.delete');
-            });
+        Route::prefix('auth')->middleware('throttle:5,1')->group(function () {
+            Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);
+        });
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::prefix('panel-admin')->group(function () {
+                Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'deconnexion']);
+                Route::get('recuperation-info-profil',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'recupererInfoProfil']);
+                Route::patch('profil',              [\App\Http\Controllers\Apiv1\Admin\AuthController::class, 'mettreAjourProfil']);
+                Route::patch('profil/mot-de-passe', [\App\Http\Controllers\Apiv1\Admin\AuthController::class, 'changerMotDePasse']);
+                Route::post('profil/photo',         [\App\Http\Controllers\Apiv1\Admin\AuthController::class, 'changerPhoto']);
+                Route::post('verifier-document',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'verificationDocument'])
+                    ->middleware('admin.perm:kyc.update');
+                Route::post('mise-a-jour-document/{documentKYC}',[\App\Http\Controllers\Apiv1\Admin\UserController::class,'mettreAjourDocument'])
+                    ->middleware('admin.perm:kyc.update');
 
-            // Configurations & Paramétrages métier
-            Route::prefix('configurations')->group(function () {
-                Route::prefix('partenaires-financiers')->middleware('admin.perm:partenaires-financiers.view')->group(function () {
-                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'index']);
-                    Route::post('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'store'])
-                        ->middleware('admin.perm:partenaires-financiers.create');
-                    Route::get('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'show']);
-                    Route::put('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'update'])
-                        ->middleware('admin.perm:partenaires-financiers.update');
-                    Route::delete('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'destroy'])
-                        ->middleware('admin.perm:partenaires-financiers.delete');
+                // Validation KYC
+                Route::prefix('kyc')->middleware('admin.perm:kyc.view')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'index']);
+                    Route::patch('/{documentKYC}/approuver', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'approuver'])
+                        ->middleware('admin.perm:kyc.validate');
+                    Route::patch('/{documentKYC}/rejeter', [\App\Http\Controllers\Apiv1\Admin\KycController::class, 'rejeter'])
+                        ->middleware('admin.perm:kyc.reject');
                 });
-            });
 
-            // Épargne (objectifs utilisateurs)
-            Route::prefix('epargne')->middleware('admin.perm:epargne.view')->group(function () {
-                Route::get('/kpis', [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'kpis']);
-                Route::get('/',     [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'index']);
-                Route::get('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'show']);
-            });
+                // Gestion des utilisateurs (travailleurs indépendants)
+                Route::prefix('utilisateurs')->middleware('admin.perm:utilisateurs.view')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'index']);
+                    Route::get('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'show']);
+                    Route::patch('/{user}/suspendre', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'suspendre'])
+                        ->middleware('admin.perm:utilisateurs.update');
+                    Route::patch('/{user}/reactiver', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reactiver'])
+                        ->middleware('admin.perm:utilisateurs.update');
+                    Route::patch('/{user}/infos-admin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'mettreAjourInfosAdmin'])
+                        ->middleware('admin.perm:utilisateurs.update');
+                    Route::patch('/{user}/reinitialiser-pin', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'reinitialiserCodePin'])
+                        ->middleware('admin.perm:utilisateurs.update');
+                    Route::get('/{user}/cotisations', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'cotisations']);
+                    Route::put('/{user}/declaration-revenu', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'mettreAJourDeclarationRevenu'])
+                        ->middleware('admin.perm:utilisateurs.update');
+                    Route::delete('/{user}', [\App\Http\Controllers\Apiv1\Admin\GestionUtilisateurController::class, 'archiver'])
+                        ->middleware('admin.perm:utilisateurs.delete');
+                });
 
-            // Cotisations sociales (stats admin)
-            Route::prefix('cotisations')->middleware('admin.perm:cotisations.view')->group(function () {
-                Route::get('/kpis',      [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'kpis']);
-                Route::get('/evolution', [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'evolutionMensuelle']);
-                Route::get('/par-type',  [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'parType']);
-                Route::get('/',          [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'index']);
-            });
+                // Configurations & Paramétrages métier
+                Route::prefix('configurations')->group(function () {
+                    Route::prefix('partenaires-financiers')->middleware('admin.perm:partenaires-financiers.view')->group(function () {
+                        Route::get('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'index']);
+                        Route::post('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'store'])
+                            ->middleware('admin.perm:partenaires-financiers.create');
+                        Route::get('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'show']);
+                        Route::put('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'update'])
+                            ->middleware('admin.perm:partenaires-financiers.update');
+                        Route::delete('/{partenaireFinancier}', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'destroy'])
+                            ->middleware('admin.perm:partenaires-financiers.delete');
+                        Route::get('/{partenaireFinancier}/tester-configuration', [\App\Http\Controllers\Apiv1\Admin\PartenaireFinancierController::class, 'testerConfiguration']);
 
-            // Transactions / Opérations financières
-            Route::prefix('transactions')->middleware('admin.perm:transactions.view')->group(function () {
-                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'index']);
-                Route::get('/{operation}', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'show']);
-            });
+                        // Comptes de destination
+                        Route::prefix('/{partenaireFinancier}/comptes-destination')->group(function () {
+                            Route::get('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'index']);
+                            Route::post('/', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'store'])
+                                ->middleware('admin.perm:partenaires-financiers.update');
+                            Route::put('/{compteDestination}', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'update'])
+                                ->middleware('admin.perm:partenaires-financiers.update');
+                            Route::delete('/{compteDestination}', [\App\Http\Controllers\Apiv1\Admin\PartenaireCompteDestinationController::class, 'destroy'])
+                                ->middleware('admin.perm:partenaires-financiers.update');
+                        });
+                    });
+                });
 
-            // Types de cotisation
-            Route::prefix('types-cotisation')->middleware('admin.perm:types-cotisation.view')->group(function () {
-                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'index']);
-                Route::post('/', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'store'])
-                    ->middleware('admin.perm:types-cotisation.create');
-                Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'show']);
-                Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'update'])
-                    ->middleware('admin.perm:types-cotisation.update');
-                Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'destroy'])
-                    ->middleware('admin.perm:types-cotisation.delete');
-                Route::patch('/{typeCotisation}/statut', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'basculerStatut'])
-                    ->middleware('admin.perm:types-cotisation.update');
-            });
+                // Épargne (objectifs utilisateurs)
+                Route::prefix('epargne')->middleware('admin.perm:epargne.view')->group(function () {
+                    Route::get('/kpis', [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'kpis']);
+                    Route::get('/',     [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'index']);
+                    Route::get('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\Admin\EpargneAdminController::class, 'show']);
+                });
 
-            // Moyens de paiement
-            Route::prefix('moyens-paiement')->middleware('admin.perm:moyens-paiement.view')->group(function () {
-                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'index']);
-                Route::post('/', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'store'])
-                    ->middleware('admin.perm:moyens-paiement.create');
-                Route::get('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'show']);
-                Route::match(['PUT', 'POST'],'/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'update'])
-                    ->middleware('admin.perm:moyens-paiement.update');
-                Route::delete('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'destroy'])
-                    ->middleware('admin.perm:moyens-paiement.delete');
-                Route::patch('/{moyenPaiement}/statut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'basculerStatut'])
-                    ->middleware('admin.perm:moyens-paiement.update');
-                Route::patch('/{moyenPaiement}/par-defaut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'definirParDefaut'])
-                    ->middleware('admin.perm:moyens-paiement.update');
-            });
+                // Cotisations sociales (stats admin)
+                Route::prefix('cotisations')->middleware('admin.perm:cotisations.view')->group(function () {
+                    Route::get('/kpis',      [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'kpis']);
+                    Route::get('/evolution', [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'evolutionMensuelle']);
+                    Route::get('/par-type',  [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'parType']);
+                    Route::get('/',          [\App\Http\Controllers\Apiv1\Admin\CotisationAdminController::class, 'index']);
+                });
 
-            // Configurations APIs des opérateurs de paiement
-            Route::prefix('configurations-api')->middleware('admin.perm:configurations-api.view')->group(function () {
-                Route::get('/',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'index']);
-                Route::post('/',   [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'store'])
-                    ->middleware('admin.perm:configurations-api.create');
-                Route::get('/{configurationApiOperateur}',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'show']);
-                Route::put('/{configurationApiOperateur}',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'update'])
-                    ->middleware('admin.perm:configurations-api.update');
-                Route::delete('/{configurationApiOperateur}', [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'destroy'])
-                    ->middleware('admin.perm:configurations-api.delete');
-                Route::patch('/{configurationApiOperateur}/statut',           [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'basculerStatut'])
-                    ->middleware('admin.perm:configurations-api.configure');
-                Route::post('/{configurationApiOperateur}/tester-connexion',  [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerConnexion'])
-                    ->middleware('admin.perm:configurations-api.configure');
-                Route::post('/{configurationApiOperateur}/tester-webhook',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerWebhook'])
-                    ->middleware('admin.perm:configurations-api.configure');
-            });
+                // Transactions / Opérations financières
+                Route::prefix('transactions')->middleware('admin.perm:transactions.view')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'index']);
+                    Route::get('/{operation}', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'show']);
+                });
 
-            // Seuils de prélèvement
-            Route::prefix('seuil-prelevements')->middleware('admin.perm:seuils-prelevement.view')->group(function () {
-                Route::get('/',  [\App\Http\Controllers\Apiv1\Admin\SeuilPrelevementController::class, 'show']);
-                Route::put('/',  [\App\Http\Controllers\Apiv1\Admin\SeuilPrelevementController::class, 'update'])
-                    ->middleware('admin.perm:seuils-prelevement.update');
-            });
+                // Types de cotisation
+                Route::prefix('types-cotisation')->middleware('admin.perm:types-cotisation.view')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'index']);
+                    Route::post('/', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'store'])
+                        ->middleware('admin.perm:types-cotisation.create');
+                    Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'show']);
+                    Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'update'])
+                        ->middleware('admin.perm:types-cotisation.update');
+                    Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'destroy'])
+                        ->middleware('admin.perm:types-cotisation.delete');
+                    Route::patch('/{typeCotisation}/statut', [\App\Http\Controllers\Apiv1\Admin\TypeCotisationController::class, 'basculerStatut'])
+                        ->middleware('admin.perm:types-cotisation.update');
+                });
 
-            // Reversements
-            Route::prefix('reversements')->middleware('admin.perm:reversements.view')->group(function () {
-                Route::get('/dashboard',                      [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'dashboard']);
-                Route::get('/calculer-disponible',            [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'calculerDisponible']);
-                Route::get('/',                               [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'index']);
-                Route::post('/',                              [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'store'])
-                    ->middleware('admin.perm:reversements.create');
-                Route::get('/{reversement}',                  [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'show']);
-                Route::patch('/{reversement}/annuler',        [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'annuler'])
-                    ->middleware('admin.perm:reversements.cancel');
-            });
+                // Moyens de paiement
+                Route::prefix('moyens-paiement')->middleware('admin.perm:moyens-paiement.view')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'index']);
+                    Route::post('/', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'store'])
+                        ->middleware('admin.perm:moyens-paiement.create');
+                    Route::get('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'show']);
+                    Route::match(['PUT', 'POST'],'/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'update'])
+                        ->middleware('admin.perm:moyens-paiement.update');
+                    Route::delete('/{moyenPaiement}', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'destroy'])
+                        ->middleware('admin.perm:moyens-paiement.delete');
+                    Route::patch('/{moyenPaiement}/statut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'basculerStatut'])
+                        ->middleware('admin.perm:moyens-paiement.update');
+                    Route::patch('/{moyenPaiement}/par-defaut', [\App\Http\Controllers\Apiv1\Admin\MoyenPaiementController::class, 'definirParDefaut'])
+                        ->middleware('admin.perm:moyens-paiement.update');
+                });
 
-            // Répartitions & Splits
-            Route::prefix('repartitions')->middleware('admin.perm:repartitions.view')->group(function () {
-                Route::get('/dashboard', [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'dashboard']);
-                Route::get('/regles',    [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'regles']);
-                Route::get('/',          [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'index']);
-                Route::get('/{operation}',[\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'show']);
-            });
+                // Configurations APIs des opérateurs de paiement
+                Route::prefix('configurations-api')->middleware('admin.perm:configurations-api.view')->group(function () {
+                    Route::get('/',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'index']);
+                    Route::post('/',   [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'store'])
+                        ->middleware('admin.perm:configurations-api.create');
+                    Route::get('/{configurationApiOperateur}',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'show']);
+                    Route::put('/{configurationApiOperateur}',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'update'])
+                        ->middleware('admin.perm:configurations-api.update');
+                    Route::delete('/{configurationApiOperateur}', [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'destroy'])
+                        ->middleware('admin.perm:configurations-api.delete');
+                    Route::patch('/{configurationApiOperateur}/statut',           [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'basculerStatut'])
+                        ->middleware('admin.perm:configurations-api.configure');
+                    Route::post('/{configurationApiOperateur}/tester-connexion',  [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerConnexion'])
+                        ->middleware('admin.perm:configurations-api.configure');
+                    Route::post('/{configurationApiOperateur}/tester-webhook',    [\App\Http\Controllers\Apiv1\Admin\ConfigurationApiController::class, 'testerWebhook'])
+                        ->middleware('admin.perm:configurations-api.configure');
+                });
 
-            // Mobile Money (admin)
-            Route::prefix('mobile-money')->middleware('admin.perm:mobile-money.view')->group(function () {
-                Route::get('/dashboard',                   [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'dashboard']);
-                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'index']);
-                Route::get('/{compteMobileMoney}',         [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'show']);
-                Route::patch('/{compteMobileMoney}/statut',[\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'basculerStatut'])
-                    ->middleware('admin.perm:mobile-money.validate');
-            });
+                // Seuils de prélèvement
+                Route::prefix('seuil-prelevements')->middleware('admin.perm:seuils-prelevement.view')->group(function () {
+                    Route::get('/',  [\App\Http\Controllers\Apiv1\Admin\SeuilPrelevementController::class, 'show']);
+                    Route::put('/',  [\App\Http\Controllers\Apiv1\Admin\SeuilPrelevementController::class, 'update'])
+                        ->middleware('admin.perm:seuils-prelevement.update');
+                });
 
-            // Gestion des administrateurs (CRUD)
-            Route::prefix('gestion-admins')->middleware('admin.perm:gestion-admins.view')->group(function () {
-                Route::get('/dashboard',                          [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'dashboard']);
-                Route::get('/',                                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'index']);
-                Route::post('/',                                  [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'store'])
-                    ->middleware('admin.perm:gestion-admins.create');
-                Route::get('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'show']);
-                Route::put('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'update'])
-                    ->middleware('admin.perm:gestion-admins.update');
-                Route::patch('/{admin}/statut',                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'changerStatut'])
-                    ->middleware('admin.perm:gestion-admins.update');
-                Route::post('/{admin}/renvoyer-invitation',       [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'renvoyerInvitation'])
-                    ->middleware('admin.perm:gestion-admins.update');
-                Route::delete('/{admin}',                         [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'archive'])
-                    ->middleware('admin.perm:gestion-admins.archive');
-                Route::patch('/{adminId}/restaurer',              [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'restore'])
-                    ->middleware('admin.perm:gestion-admins.restore');
-            });
+                // Reversements
+                Route::prefix('reversements')->middleware('admin.perm:reversements.view')->group(function () {
+                    Route::get('/dashboard',                      [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'dashboard']);
+                    Route::get('/calculer-disponible',            [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'calculerDisponible']);
+                    Route::get('/',                               [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'index']);
+                    Route::post('/',                              [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'store'])
+                        ->middleware('admin.perm:reversements.create');
+                    Route::get('/{reversement}',                  [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'show']);
+                    Route::patch('/{reversement}/annuler',        [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'annuler'])
+                        ->middleware('admin.perm:reversements.cancel');
+                    Route::post('/{reversement}/retransmettre',   [\App\Http\Controllers\Apiv1\Admin\ReversementAdminController::class, 'retransmettre'])
+                        ->middleware('admin.perm:reversements.update');
+                });
 
-            // Rôles & Permissions (RBAC)
-            Route::prefix('roles')->middleware('admin.perm:roles.view')->group(function () {
-                Route::get('/all',                         [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'all']);
-                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'index']);
-                Route::post('/',                           [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'store'])
-                    ->middleware('admin.perm:roles.create');
-                Route::get('/{role}',                      [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'show']);
-                Route::put('/{role}',                      [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'update'])
-                    ->middleware('admin.perm:roles.update');
-                Route::patch('/{role}/archiver',           [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'archive'])
-                    ->middleware('admin.perm:roles.archive');
-                Route::patch('/{role}/restaurer',          [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'restore'])
-                    ->middleware('admin.perm:roles.restore');
-                Route::put('/{role}/sync-permissions',     [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'syncPermissions'])
-                    ->middleware('admin.perm:roles.assign');
-            });
+                // Répartitions & Splits
+                Route::prefix('repartitions')->middleware('admin.perm:repartitions.view')->group(function () {
+                    Route::get('/dashboard', [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'dashboard']);
+                    Route::get('/regles',    [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'regles']);
+                    Route::get('/',          [\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'index']);
+                    Route::get('/{operation}',[\App\Http\Controllers\Apiv1\Admin\RepartitionAdminController::class, 'show']);
+                });
 
-            Route::prefix('permissions')->middleware('admin.perm:permissions.view')->group(function () {
-                Route::get('/par-module',                  [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'parModule']);
-                Route::get('/modules',                     [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'modules']);
-                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'index']);
-                Route::post('/',                           [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'store'])
-                    ->middleware('admin.perm:permissions.create');
-                Route::put('/{permission}',                [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'update'])
-                    ->middleware('admin.perm:permissions.update');
-            });
+                // Mobile Money (admin)
+                Route::prefix('mobile-money')->middleware('admin.perm:mobile-money.view')->group(function () {
+                    Route::get('/dashboard',                   [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'dashboard']);
+                    Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'index']);
+                    Route::get('/{compteMobileMoney}',         [\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'show']);
+                    Route::patch('/{compteMobileMoney}/statut',[\App\Http\Controllers\Apiv1\Admin\MobileMoneyAdminController::class, 'basculerStatut'])
+                        ->middleware('admin.perm:mobile-money.validate');
+                });
 
-            Route::prefix('admins-rbac')->middleware('admin.perm:gestion-admins.view')->group(function () {
-                Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'index']);
-                Route::get('/{admin}',                     [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'show']);
-                Route::patch('/{admin}/assigner-role',     [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'assignerRole'])
-                    ->middleware('admin.perm:gestion-admins.assign');
-                Route::patch('/{admin}/retirer-role',      [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'retirerRole'])
-                    ->middleware('admin.perm:gestion-admins.assign');
-                Route::patch('/{admin}/assigner-permissions', [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'assignerPermissions'])
-                    ->middleware('admin.perm:gestion-admins.assign');
-                Route::patch('/{admin}/retirer-permissions',  [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'retirerPermissions'])
-                    ->middleware('admin.perm:gestion-admins.assign');
-            });
+                // Gestion des administrateurs (CRUD)
+                Route::prefix('gestion-admins')->middleware('admin.perm:gestion-admins.view')->group(function () {
+                    Route::get('/dashboard',                          [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'dashboard']);
+                    Route::get('/',                                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'index']);
+                    Route::post('/',                                  [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'store'])
+                        ->middleware('admin.perm:gestion-admins.create');
+                    Route::get('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'show']);
+                    Route::put('/{admin}',                            [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'update'])
+                        ->middleware('admin.perm:gestion-admins.update');
+                    Route::patch('/{admin}/statut',                   [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'changerStatut'])
+                        ->middleware('admin.perm:gestion-admins.update');
+                    Route::post('/{admin}/renvoyer-invitation',       [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'renvoyerInvitation'])
+                        ->middleware('admin.perm:gestion-admins.update');
+                    Route::delete('/{admin}',                         [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'archive'])
+                        ->middleware('admin.perm:gestion-admins.archive');
+                    Route::patch('/{adminId}/restaurer',              [\App\Http\Controllers\Apiv1\Admin\AdminGestionController::class, 'restore'])
+                        ->middleware('admin.perm:gestion-admins.restore');
+                });
 
-            // Logs & Audit
-            Route::prefix('logs-audit')->middleware('admin.perm:logs-audit.view')->group(function () {
-                Route::get('/modules',          [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'modules']);
-                Route::get('/actions',          [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'actions']);
-                Route::get('/export',           [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'export'])
-                    ->middleware('admin.perm:logs-audit.export');
-                Route::get('/',                 [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'index']);
-                Route::get('/{logAudit}',       [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'show']);
-                Route::delete('/{logAudit}',    [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'archive'])
-                    ->middleware('admin.perm:logs-audit.delete');
-                Route::patch('/{logId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'restore'])
-                    ->middleware('admin.perm:logs-audit.delete');
-            });
+                // Rôles & Permissions (RBAC)
+                Route::prefix('roles')->middleware('admin.perm:roles.view')->group(function () {
+                    Route::get('/all',                         [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'all']);
+                    Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'index']);
+                    Route::post('/',                           [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'store'])
+                        ->middleware('admin.perm:roles.create');
+                    Route::get('/{role}',                      [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'show']);
+                    Route::put('/{role}',                      [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'update'])
+                        ->middleware('admin.perm:roles.update');
+                    Route::patch('/{role}/archiver',           [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'archive'])
+                        ->middleware('admin.perm:roles.archive');
+                    Route::patch('/{role}/restaurer',          [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'restore'])
+                        ->middleware('admin.perm:roles.restore');
+                    Route::put('/{role}/sync-permissions',     [\App\Http\Controllers\Apiv1\Admin\RoleController::class, 'syncPermissions'])
+                        ->middleware('admin.perm:roles.assign');
+                });
 
-            // Alertes système
-            Route::prefix('alertes')->middleware('admin.perm:alertes.view')->group(function () {
-                Route::get('/compteurs',              [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'compteurs']);
-                Route::get('/',                       [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'index']);
-                Route::get('/{alerte}',               [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'show']);
-                Route::patch('/{alerteId}/lire',      [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'marquerLu'])
-                    ->middleware('admin.perm:alertes.update');
-                Route::post('/lire-tout',             [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'marquerTousLus'])
-                    ->middleware('admin.perm:alertes.update');
-                Route::delete('/{alerte}',            [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'archive'])
-                    ->middleware('admin.perm:alertes.delete');
-                Route::patch('/{alerteId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'restore'])
-                    ->middleware('admin.perm:alertes.delete');
-            });
+                Route::prefix('permissions')->middleware('admin.perm:permissions.view')->group(function () {
+                    Route::get('/par-module',                  [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'parModule']);
+                    Route::get('/modules',                     [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'modules']);
+                    Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'index']);
+                    Route::post('/',                           [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'store'])
+                        ->middleware('admin.perm:permissions.create');
+                    Route::put('/{permission}',                [\App\Http\Controllers\Apiv1\Admin\PermissionController::class, 'update'])
+                        ->middleware('admin.perm:permissions.update');
+                });
 
-            Route::prefix('parametres-globaux')->middleware('admin.perm:parametres-globaux.view')->group(function () {
-                Route::get('/config',  [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'config']);
-                Route::put('/config',  [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'saveConfig'])
-                    ->middleware('admin.perm:parametres-globaux.update');
-                Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
-                Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store'])
-                    ->middleware('admin.perm:parametres-globaux.create');
-                Route::get('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'show']);
-                Route::put('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'update'])
-                    ->middleware('admin.perm:parametres-globaux.update');
-                Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy'])
-                    ->middleware('admin.perm:parametres-globaux.delete');
-            });
+                Route::prefix('admins-rbac')->middleware('admin.perm:gestion-admins.view')->group(function () {
+                    Route::get('/',                            [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'index']);
+                    Route::get('/{admin}',                     [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'show']);
+                    Route::patch('/{admin}/assigner-role',     [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'assignerRole'])
+                        ->middleware('admin.perm:gestion-admins.assign');
+                    Route::patch('/{admin}/retirer-role',      [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'retirerRole'])
+                        ->middleware('admin.perm:gestion-admins.assign');
+                    Route::patch('/{admin}/assigner-permissions', [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'assignerPermissions'])
+                        ->middleware('admin.perm:gestion-admins.assign');
+                    Route::patch('/{admin}/retirer-permissions',  [\App\Http\Controllers\Apiv1\Admin\AdminRoleController::class, 'retirerPermissions'])
+                        ->middleware('admin.perm:gestion-admins.assign');
+                });
 
-            // Paramètres généraux de la plateforme (singleton)
-            Route::prefix('parametre-general')->middleware('admin.perm:parametres-generaux.view')->group(function () {
-                Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'show']);
-                Route::post('/',                         [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'save'])
-                    ->middleware('admin.perm:parametres-generaux.update');
-                Route::delete('/fichier/{champ}',        [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'supprimerFichier'])
-                    ->where('champ', '[a-z_]+')
-                    ->middleware('admin.perm:parametres-generaux.update');
-            });
+                // Logs & Audit
+                Route::prefix('logs-audit')->middleware('admin.perm:logs-audit.view')->group(function () {
+                    Route::get('/modules',          [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'modules']);
+                    Route::get('/actions',          [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'actions']);
+                    Route::get('/export',           [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'export'])
+                        ->middleware('admin.perm:logs-audit.export');
+                    Route::get('/',                 [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'index']);
+                    Route::get('/{logAudit}',       [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'show']);
+                    Route::delete('/{logAudit}',    [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'archive'])
+                        ->middleware('admin.perm:logs-audit.delete');
+                    Route::patch('/{logId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\LogAuditController::class, 'restore'])
+                        ->middleware('admin.perm:logs-audit.delete');
+                });
 
-            // Gestion des notifications (canaux + historique)
-            Route::prefix('notification-config')->middleware('admin.perm:notifications-config.view')->group(function () {
-                Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'index']);
-                Route::get('/logs',                      [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'logs']);
-                Route::get('/logs/compteurs',            [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'logsCompteurs']);
-                Route::post('/logs/{id}/reessayer',      [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'reessayer'])
-                    ->middleware('admin.perm:notifications-config.update');
-                Route::get('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'show']);
-                Route::put('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'update'])
-                    ->middleware('admin.perm:notifications-config.update');
-                Route::patch('/{canal}/statut',          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'basculerStatut'])
-                    ->middleware('admin.perm:notifications-config.update');
-                Route::post('/{canal}/tester',           [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'testerEnvoi'])
-                    ->middleware('admin.perm:notifications-config.update');
-            });
+                // Alertes système
+                Route::prefix('alertes')->middleware('admin.perm:alertes.view')->group(function () {
+                    Route::get('/compteurs',              [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'compteurs']);
+                    Route::get('/',                       [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'index']);
+                    Route::get('/{alerte}',               [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'show']);
+                    Route::patch('/{alerteId}/lire',      [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'marquerLu'])
+                        ->middleware('admin.perm:alertes.update');
+                    Route::post('/lire-tout',             [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'marquerTousLus'])
+                        ->middleware('admin.perm:alertes.update');
+                    Route::delete('/{alerte}',            [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'archive'])
+                        ->middleware('admin.perm:alertes.delete');
+                    Route::patch('/{alerteId}/restaurer', [\App\Http\Controllers\Apiv1\Admin\AlerteController::class, 'restore'])
+                        ->middleware('admin.perm:alertes.delete');
+                });
 
-            // Tableau de bord
-            Route::get('/dashboard', [\App\Http\Controllers\Apiv1\Admin\DashboardController::class, 'index'])
-                ->middleware('admin.perm:dashboard.view');
+                Route::prefix('parametres-globaux')->middleware('admin.perm:parametres-globaux.view')->group(function () {
+                    Route::get('/config',  [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'config']);
+                    Route::put('/config',  [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'saveConfig'])
+                        ->middleware('admin.perm:parametres-globaux.update');
+                    Route::get('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'index']);
+                    Route::post('/', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'store'])
+                        ->middleware('admin.perm:parametres-globaux.create');
+                    Route::get('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'show']);
+                    Route::put('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'update'])
+                        ->middleware('admin.perm:parametres-globaux.update');
+                    Route::delete('/{parametreGlobal}', [\App\Http\Controllers\Apiv1\Admin\ParametreGlobalController::class, 'destroy'])
+                        ->middleware('admin.perm:parametres-globaux.delete');
+                });
 
-            // Gestion des pages personnalisées (CMS)
-            Route::prefix('pages')->middleware('admin.perm:pages.view')->group(function () {
-                Route::get('/types',                [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'types']);
-                Route::get('/',                     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'index']);
-                Route::post('/',                    [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'store'])
-                    ->middleware('admin.perm:pages.create');
-                Route::get('/{id}',                 [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'show']);
-                Route::put('/{id}',                 [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'update'])
-                    ->middleware('admin.perm:pages.update');
-                Route::delete('/{id}',              [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'destroy'])
-                    ->middleware('admin.perm:pages.delete');
-                Route::patch('/{id}/publier',       [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'publier'])
-                    ->middleware('admin.perm:pages.update');
-                Route::patch('/{id}/depublier',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'depublier'])
-                    ->middleware('admin.perm:pages.update');
-                Route::patch('/{id}/restaurer',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'restaurer'])
-                    ->middleware('admin.perm:pages.restore');
-            });
+                // Paramètres généraux de la plateforme (singleton)
+                Route::prefix('parametre-general')->middleware('admin.perm:parametres-generaux.view')->group(function () {
+                    Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'show']);
+                    Route::post('/',                         [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'save'])
+                        ->middleware('admin.perm:parametres-generaux.update');
+                    Route::delete('/fichier/{champ}',        [\App\Http\Controllers\Apiv1\Admin\ParametreGeneralController::class, 'supprimerFichier'])
+                        ->where('champ', '[a-z_]+')
+                        ->middleware('admin.perm:parametres-generaux.update');
+                });
 
-            // Export de données (PDF, Excel, CSV)
-            Route::get('/export/{module}', [\App\Http\Controllers\Apiv1\Admin\ExportController::class, 'export'])
-                ->where('module', '[a-z\-]+');
+                // Gestion des notifications (canaux + historique)
+                Route::prefix('notification-config')->middleware('admin.perm:notifications-config.view')->group(function () {
+                    Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'index']);
+                    Route::get('/logs',                      [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'logs']);
+                    Route::get('/logs/compteurs',            [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'logsCompteurs']);
+                    Route::post('/logs/{id}/reessayer',      [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'reessayer'])
+                        ->middleware('admin.perm:notifications-config.update');
+                    Route::get('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'show']);
+                    Route::put('/{canal}',                   [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'update'])
+                        ->middleware('admin.perm:notifications-config.update');
+                    Route::patch('/{canal}/statut',          [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'basculerStatut'])
+                        ->middleware('admin.perm:notifications-config.update');
+                    Route::post('/{canal}/tester',           [\App\Http\Controllers\Apiv1\Admin\NotificationConfigController::class, 'testerEnvoi'])
+                        ->middleware('admin.perm:notifications-config.update');
+                });
 
-            // Audit de sécurité
-            Route::prefix('audit-securite')->middleware('admin.perm:systeme.view')->group(function () {
-                Route::get('/dashboard',                                    [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'dashboard']);
-                Route::get('/statut',                                       [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'statut']);
-                Route::get('/vulnerabilites',                               [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'vulnerabilites']);
-                Route::get('/historique',                                   [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'historique']);
-                Route::patch('/vulnerabilites/{vulnerabilite}/corrige',     [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'marquerCorrige']);
-                Route::patch('/vulnerabilites/{vulnerabilite}/statut',      [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'changerStatut']);
-                Route::get('/export/pdf',                                   [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'exportPdf']);
-                Route::get('/export/excel',                                 [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'exportExcel']);
-                // Actions (Super Admin uniquement)
-                Route::post('/lancer',                                      [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'lancer']);
-                Route::post('/corrections/appliquer',                       [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'appliquerCorrections']);
-            });
+                // Tableau de bord
+                Route::get('/dashboard', [\App\Http\Controllers\Apiv1\Admin\DashboardController::class, 'index'])
+                    ->middleware('admin.perm:dashboard.view');
 
-            // Système & Backups (Super Admin uniquement)
-            Route::prefix('systeme')->middleware('admin.perm:systeme.view')->group(function () {
-                // Logs Laravel
-                Route::get('/logs/info',        [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsInfo']);
-                Route::get('/logs/telecharger',  [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsDownload']);
-                Route::get('/logs',              [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsIndex']);
-                Route::delete('/logs',           [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsClear'])
-                    ->middleware('admin.perm:systeme.delete');
+                // Gestion des pages personnalisées (CMS)
+                Route::prefix('pages')->middleware('admin.perm:pages.view')->group(function () {
+                    Route::get('/types',                [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'types']);
+                    Route::get('/',                     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'index']);
+                    Route::post('/',                    [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'store'])
+                        ->middleware('admin.perm:pages.create');
+                    Route::get('/{id}',                 [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'show']);
+                    Route::put('/{id}',                 [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'update'])
+                        ->middleware('admin.perm:pages.update');
+                    Route::delete('/{id}',              [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'destroy'])
+                        ->middleware('admin.perm:pages.delete');
+                    Route::patch('/{id}/publier',       [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'publier'])
+                        ->middleware('admin.perm:pages.update');
+                    Route::patch('/{id}/depublier',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'depublier'])
+                        ->middleware('admin.perm:pages.update');
+                    Route::patch('/{id}/restaurer',     [\App\Http\Controllers\Apiv1\Admin\PageController::class, 'restaurer'])
+                        ->middleware('admin.perm:pages.restore');
+                });
 
-                // Sauvegardes BDD
-                Route::get('/backups',                              [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupsIndex']);
-                Route::post('/backups',                             [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupCreate'])
-                    ->middleware('admin.perm:systeme.backup');
-                Route::get('/backups/{filename}/telecharger',       [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDownload'])
-                    ->where('filename', '.+');
-                Route::delete('/backups/{filename}',                [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDelete'])
-                    ->where('filename', '.+');
+                // Support — Tickets / Réclamations
+                Route::prefix('tickets')->middleware('admin.perm:tickets.view')->group(function () {
+                    Route::get('/',       [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'index']);
+                    Route::get('/{id}',   [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'show']);
+                    Route::patch('/{id}', [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'update'])
+                        ->middleware('admin.perm:tickets.update');
+                    Route::delete('/{id}', [\App\Http\Controllers\Apiv1\Admin\TicketController::class, 'destroy'])
+                        ->middleware('admin.perm:tickets.delete');
+                });
+
+                // Support — FAQ
+                Route::prefix('faq')->middleware('admin.perm:faq.view')->group(function () {
+                    Route::get('/',                 [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'index']);
+                    Route::post('/',                [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'store'])
+                        ->middleware('admin.perm:faq.create');
+                    Route::get('/{id}',             [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'show']);
+                    Route::put('/{id}',             [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'update'])
+                        ->middleware('admin.perm:faq.update');
+                    Route::delete('/{id}',          [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'destroy'])
+                        ->middleware('admin.perm:faq.delete');
+                    Route::patch('/{id}/publier',   [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'publier'])
+                        ->middleware('admin.perm:faq.update');
+                    Route::patch('/{id}/depublier', [\App\Http\Controllers\Apiv1\Admin\FaqController::class, 'depublier'])
+                        ->middleware('admin.perm:faq.update');
+                });
+
+                // Export de données (PDF, Excel, CSV)
+                Route::get('/export/{module}', [\App\Http\Controllers\Apiv1\Admin\ExportController::class, 'export'])
+                    ->where('module', '[a-z\-]+');
+
+                // Audit de sécurité
+                Route::prefix('audit-securite')->middleware('admin.perm:systeme.view')->group(function () {
+                    Route::get('/dashboard',                                    [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'dashboard']);
+                    Route::get('/statut',                                       [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'statut']);
+                    Route::get('/vulnerabilites',                               [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'vulnerabilites']);
+                    Route::get('/historique',                                   [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'historique']);
+                    Route::patch('/vulnerabilites/{vulnerabilite}/corrige',     [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'marquerCorrige']);
+                    Route::patch('/vulnerabilites/{vulnerabilite}/statut',      [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'changerStatut']);
+                    Route::get('/export/pdf',                                   [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'exportPdf']);
+                    Route::get('/export/excel',                                 [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'exportExcel']);
+                    // Actions (Super Admin uniquement)
+                    Route::post('/lancer',                                      [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'lancer']);
+                    Route::post('/corrections/appliquer',                       [\App\Http\Controllers\Apiv1\Admin\SecurityAuditController::class, 'appliquerCorrections']);
+                });
+
+                // Système & Backups (Super Admin uniquement)
+                Route::prefix('systeme')->middleware('admin.perm:systeme.view')->group(function () {
+                    // Logs Laravel
+                    Route::get('/logs/info',        [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsInfo']);
+                    Route::get('/logs/telecharger',  [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsDownload']);
+                    Route::get('/logs',              [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsIndex']);
+                    Route::delete('/logs',           [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'logsClear'])
+                        ->middleware('admin.perm:systeme.delete');
+
+                    // Sauvegardes BDD
+                    Route::get('/backups',                              [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupsIndex']);
+                    Route::post('/backups',                             [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupCreate'])
+                        ->middleware('admin.perm:systeme.backup');
+                    Route::get('/backups/{filename}/telecharger',       [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDownload'])
+                        ->where('filename', '.+');
+                    Route::delete('/backups/{filename}',                [\App\Http\Controllers\Apiv1\Admin\SystemeController::class, 'backupDelete'])
+                        ->where('filename', '.+');
+                });
+
+                // Condition générales
+                Route::prefix('condition-generale')->middleware('admin.perm:condition-generale.view')->group(function () {
+                    Route::get('/',                          [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'index'])
+                        ->middleware('admin.perm:condition-generale.view');
+                    Route::post('/',                         [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'store'])
+                        ->middleware('admin.perm:condition-generale.create');
+                    
+                    Route::get('/{conditionGenerale}',                      [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'show'])
+                        ->middleware('admin.perm:condition-generale.view');
+                    
+                    Route::post('/{conditionGenerale}',                      [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'update'])
+                        ->middleware('admin.perm:condition-generale.update');
+                    
+                    Route::delete('/{conditionGenerale}',                   [\App\Http\Controllers\Apiv1\Admin\ConditionGeneraleController::class, 'destroy'])
+                        ->middleware('admin.perm:condition-generale.delete');
+                });
             });
         });
     });
+
+}); // fin gate plateforme.actif
+//============================================ /FIN API PANEL ADMINISTRATION =========================================
+
+
+//============================================ API PANEL CENTRAL (CONTRÔLE PLATEFORME) =========================================
+// Hors gate plateforme.actif — doit rester accessible même en MAINTENANCE / DESACTIVEE.
+Route::prefix('control-panel')->group(function () {
+    Route::post('auth/se-connecter', [\App\Http\Controllers\Apiv1\ControlPanel\PlatformControlAuthController::class, 'connexion'])
+        ->middleware('throttle:5,1');
+
+    Route::middleware(['auth:sanctum', 'ability:control-panel'])->group(function () {
+        Route::post('auth/se-deconnecter', [\App\Http\Controllers\Apiv1\ControlPanel\PlatformControlAuthController::class, 'deconnexion']);
+        Route::get('etat',      [\App\Http\Controllers\Apiv1\ControlPanel\PlatformStateController::class, 'show']);
+        Route::put('etat',      [\App\Http\Controllers\Apiv1\ControlPanel\PlatformStateController::class, 'update']);
+        Route::get('historique',[\App\Http\Controllers\Apiv1\ControlPanel\PlatformStateController::class, 'historique']);
+    });
 });
+//============================================ /FIN API PANEL CENTRAL =========================================
 
 
 

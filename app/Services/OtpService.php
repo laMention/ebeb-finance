@@ -16,9 +16,12 @@ class OtpService
      * Génère et envoie un code OTP à un utilisateur
      *
      * @param User|string $user L'utilisateur ou son télephone
+     * @param string $contexte Motif de l'envoi (inscription, connexion,
+     *   réinitialisation du code PIN…) — purement informatif, la vérification
+     *   ne filtre jamais par ce champ (voir `verify()`).
      * @return array Retourne le code OTP et le message
      */
-    public function generateAndSend($user): array
+    public function generateAndSend($user, string $contexte = 'Verification numuméro de télephone du travailleur indépendant'): array
     {
         $user_id = $user instanceof User ? $user->id : $user;
 
@@ -41,7 +44,7 @@ class OtpService
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
             'tentatives' => 0,
-            'contexte' => 'Verification numuméro de télephone du travailleur indépendant'
+            'contexte' => $contexte,
         ]);
 
         // Implementation de l'envoi par SMS plutard
@@ -86,6 +89,14 @@ class OtpService
     public function verify(string $telephone, string $code): array
     {
         $user = User::where('telephone', $telephone)->first();
+
+        if (!$user) {
+            return [
+                'success' => false,
+                'message' => 'Aucun utilisateur trouvé pour ce numéro de téléphone.',
+            ];
+        }
+
         $otp = SessionOtp::where('user_id', $user->id)->first();
 
         // Vérifier l'existence de l'OTP
@@ -154,6 +165,10 @@ class OtpService
     {
         $user = User::where('telephone', $telephone)->first();
 
+        if (!$user) {
+            return false;
+        }
+
         $otp = SessionOtp::where('user_id', $user->id)
             ->where('est_utilise', true)
             ->first();
@@ -175,6 +190,9 @@ class OtpService
     public function isVerified(string $telephone): bool
     {
         $user = User::where('telephone', $telephone)->first();
+        if (!$user) {
+            return false;
+        }
         return SessionOtp::where('user_id', $user->id)
             ->where('est_utilise', true)
             ->exists();

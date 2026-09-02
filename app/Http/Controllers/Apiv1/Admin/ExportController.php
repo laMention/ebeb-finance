@@ -11,6 +11,29 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ExportController extends BaseController
 {
+    /**
+     * Module (paramètre de route, vocabulaire d'`ExportService::exporter`)
+     * → module de permission RBAC correspondant (`RolesAndPermissionsSeeder`).
+     * Cette route étant générique (un seul handler pour tous les modules),
+     * elle ne peut pas être protégée par un simple `admin.perm:` statique au
+     * niveau des routes — la permission requise dépend du module demandé et
+     * doit donc être vérifiée ici, module par module.
+     */
+    private const MODULE_PERMISSIONS = [
+        'utilisateurs'     => 'utilisateurs',
+        'transactions'     => 'transactions',
+        'repartitions'     => 'repartitions',
+        'reversements'     => 'reversements',
+        'cotisations'      => 'cotisations',
+        'epargne'          => 'epargne',
+        'mobile-money'     => 'mobile-money',
+        'partenaires'      => 'partenaires-financiers',
+        'moyens-paiement'  => 'moyens-paiement',
+        'types-cotisation' => 'types-cotisation',
+        'administrateurs'  => 'gestion-admins',
+        'alertes'          => 'alertes',
+    ];
+
     public function __construct(private ExportService $exportService) {}
 
     /**
@@ -18,6 +41,18 @@ class ExportController extends BaseController
      */
     public function export(Request $request, string $module): mixed
     {
+        $admin       = $request->user();
+        $permModule  = self::MODULE_PERMISSIONS[$module] ?? null;
+        $permission  = $permModule ? "{$permModule}.export" : null;
+
+        if (!$permission || (!$admin?->isSuperAdmin() && !$admin?->hasPermissionTo($permission, 'admin'))) {
+            return $this->sendError(
+                "Accès refusé. Permission manquante : " . ($permission ?? 'module inconnu') . '.',
+                [],
+                403
+            );
+        }
+
         $format = strtolower($request->get('format', 'xlsx'));
 
         if (!in_array($format, ['xlsx', 'csv', 'pdf'], true)) {
