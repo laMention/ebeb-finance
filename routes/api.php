@@ -44,6 +44,15 @@ Route::middleware('plateforme.actif')->group(function () {
             // du throttle global, un code PIN n'a que 6 chiffres.
             Route::post('code-pin/verifier', [\App\Http\Controllers\Apiv1\UserController::class, 'verifierCodePin'])
                 ->middleware('throttle:8,1');
+            // Code PIN oublié : identité prouvée par OTP (envoyé par email),
+            // pas besoin de connaître l'ancien code PIN.
+            Route::prefix('code-pin/reinitialiser')->group(function () {
+                Route::post('demander-otp', [\App\Http\Controllers\Apiv1\UserController::class, 'demanderReinitialisationCodePin'])
+                    ->middleware('throttle:3,1');
+                Route::post('verifier-otp', [\App\Http\Controllers\Apiv1\UserController::class, 'verifierOtpReinitialisationCodePin'])
+                    ->middleware('throttle:8,1');
+                Route::post('/', [\App\Http\Controllers\Apiv1\UserController::class, 'reinitialiserCodePin']);
+            });
             Route::post('se-deconnecter',[\App\Http\Controllers\Apiv1\UserController::class,'deconnexion']);
             
             // Paiements reçus

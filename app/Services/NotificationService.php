@@ -457,6 +457,21 @@ class NotificationService
         ]);
     }
 
+    /**
+     * Prévient l'utilisateur que son code PIN vient d'être réinitialisé
+     * (parcours « code PIN oublié », après vérification OTP réussie) — un
+     * signal de sécurité, pas seulement une confirmation de confort.
+     */
+    public function notifierCodePinReinitialise(User $user): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'CODE_PIN_REINITIALISE', [
+            'titre'   => 'Code PIN réinitialisé',
+            'message' => 'Votre code PIN vient d\'être réinitialisé. Si vous n\'êtes pas à l\'origine de cette '
+                . 'action, contactez immédiatement le support.',
+            'sujet'   => 'Réinitialisation de votre code PIN — ' . config('app.name'),
+        ]);
+    }
+
     private function fcfa(float $montant): string
     {
         return number_format($montant, 0, ',', ' ') . ' FCFA';
