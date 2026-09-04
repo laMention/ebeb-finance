@@ -8,7 +8,17 @@
 
     class AdminService
     {
-        // connexion administrateur
+        public function __construct(private AdminTwoFactorService $twoFactorService)
+        {
+        }
+
+        /**
+         * Étape 1 de la connexion : valide les identifiants puis déclenche la
+         * 2FA (voir AdminTwoFactorService::demarrer()) — ne crée jamais de
+         * jeton Sanctum ici. Un mot de passe correct seul n'accorde donc
+         * jamais l'accès : c'est `verifierCode2FA()` qui authentifie
+         * réellement, une fois le second facteur validé.
+         */
         public function connexion(array $data): array
         {
             $email_telephone = $data['email_telephone'] ?? null;
@@ -45,28 +55,28 @@
                 ];
             }
 
-            // create Sanctum token if available
-            $token = null;
-            if (method_exists($admin, 'createToken')) {
-                $token = $admin->createToken('admin-token')->plainTextToken;
-                $admin->setRememberToken($token);
-            }
+            // Mot de passe valide : jamais de jeton ici. La 2FA prend le
+            // relais — seul verifierCode2FA() (étape 2) authentifie pour de
+            // bon.
+            return $this->twoFactorService->demarrer($admin);
+        }
 
-            // Charger les rôles et calculer les permissions pour le frontend
-            $admin->load(['roles']);
-            $hasAllPermissions = $admin->isSuperAdmin();
-            $permissions       = $hasAllPermissions
-                ? []  // frontend détectera has_all_permissions=true et accordera tout
-                : $admin->getAllPermissions()->pluck('name')->values()->toArray();
+        /**
+         * Étape 2 : valide le code reçu par email et, seulement à ce
+         * moment-là, ouvre réellement la session (jeton Sanctum, rôles,
+         * permissions).
+         */
+        public function verifierCode2FA(string $challengeId, string $code): array
+        {
+            return $this->twoFactorService->verifier($challengeId, $code);
+        }
 
-            return [
-                'success'             => true,
-                'message'             => 'Connexion réussie.',
-                'admin'               => $admin,
-                'token'               => 'Bearer ' . $token,
-                'permissions'         => $permissions,
-                'has_all_permissions' => $hasAllPermissions,
-            ];
+        /**
+         * Renvoie un nouveau code sur un challenge 2FA existant.
+         */
+        public function renvoyerCode2FA(string $challengeId): array
+        {
+            return $this->twoFactorService->renvoyer($challengeId);
         }
 
         // Deconnexion

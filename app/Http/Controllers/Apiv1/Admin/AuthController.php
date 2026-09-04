@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Apiv1\Admin;
 
 use App\Http\Controllers\BaseController;
 use App\Http\Requests\Admin\ConnexionRequest;
+use App\Http\Requests\Admin\RenvoyerCode2FARequest;
+use App\Http\Requests\Admin\VerifierCode2FARequest;
 use App\Services\AdminService;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +21,10 @@ class AuthController extends BaseController
         $this->adminService = $adminService;
     }
 
-    // Methode pour se connecter à l'administration
+    /**
+     * Étape 1 : identifiants. Ne connecte jamais directement — déclenche la
+     * 2FA et retourne un `challenge_id` à présenter à `verifierCode()`.
+     */
     public function connexion(ConnexionRequest $request)
     {
         try {
@@ -30,9 +35,45 @@ class AuthController extends BaseController
                 return $this->sendError($result['message'],[],400);
             }
 
+            AuditLogger::log('ADMIN.2FA_CODE_ENVOYE', null,
+                'administrateurs', null, null, ['login' => $validated['email_telephone'] ?? null]);
+
+            $data = [
+                'two_factor_required' => true,
+                'challenge_id'        => $result['challenge_id'],
+            ];
+
+            return $this->sendResponse($data, $result['message'] ?? 'Code de vérification envoyé.');
+        } catch (\Exception $e) {
+            //throw $th;
+           return $this->throw($e);
+        }
+
+    }
+
+    /**
+     * Étape 2 : code de vérification. Authentifie réellement l'administrateur
+     * (jeton Sanctum, rôles, permissions) — seulement si le code est valide.
+     */
+    public function verifierCode(VerifierCode2FARequest $request)
+    {
+        try {
+            $validated = $request->validated();
+            $result = $this->adminService->verifierCode2FA($validated['challenge_id'], $validated['code']);
+
+            if (!$result['success']) {
+                AuditLogger::log('ADMIN.2FA_ECHEC', null, 'administrateurs', null, null, [
+                    'challenge_id' => $validated['challenge_id'],
+                    'raison'       => $result['message'],
+                ]);
+                return $this->sendError($result['message'], [], 400);
+            }
+
             $admin = $result['admin'] ?? null;
+            AuditLogger::log('ADMIN.2FA_VERIFIE', $admin instanceof \App\Models\Administrateur ? $admin : null,
+                'administrateurs', $admin->id ?? null);
             AuditLogger::log('ADMIN.CONNEXION', $admin instanceof \App\Models\Administrateur ? $admin : null,
-                'administrateurs', $admin->id ?? null, null, ['login' => $validated['email_telephone'] ?? null]);
+                'administrateurs', $admin->id ?? null);
 
             $data = [
                 'success'             => $result['success'],
@@ -44,10 +85,32 @@ class AuthController extends BaseController
 
             return $this->sendResponse($data, $result['message'] ?? 'Connexion réussie');
         } catch (\Exception $e) {
-            //throw $th;
-           return $this->throw($e);
+            return $this->throw($e);
         }
-        
+    }
+
+    /**
+     * Renvoie un nouveau code sur un challenge 2FA existant.
+     */
+    public function renvoyerCode(RenvoyerCode2FARequest $request)
+    {
+        try {
+            $validated = $request->validated();
+            $result = $this->adminService->renvoyerCode2FA($validated['challenge_id']);
+
+            if (!$result['success']) {
+                return $this->sendError($result['message'], [], 400);
+            }
+
+            AuditLogger::log('ADMIN.2FA_CODE_RENVOYE', null, 'administrateurs', null);
+
+            return $this->sendResponse([
+                'two_factor_required' => true,
+                'challenge_id'        => $result['challenge_id'],
+            ], $result['message']);
+        } catch (\Exception $e) {
+            return $this->throw($e);
+        }
     }
 
     // Methode pour se deconnecter

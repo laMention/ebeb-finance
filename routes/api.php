@@ -61,6 +61,13 @@ Route::middleware('plateforme.actif')->group(function () {
                 Route::get('/{paiementId}', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'show']);
             });
 
+            // Transferts par QR code (compte à compte, même opérateur) —
+            // statut SIMULE pour l'instant, voir TransfertQrService.
+            Route::prefix('paiements-qr')->middleware('throttle:15,1')->group(function () {
+                Route::post('identifier', [\App\Http\Controllers\Apiv1\TransfertQrController::class, 'identifier']);
+                Route::post('envoyer', [\App\Http\Controllers\Apiv1\TransfertQrController::class, 'envoyer']);
+            });
+
             // Opérations / historique des transactions
             Route::prefix('operations')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\OperationController::class, 'index']);
@@ -171,6 +178,12 @@ Route::middleware('plateforme.actif')->group(function () {
 
         Route::prefix('auth')->middleware('throttle:5,1')->group(function () {
             Route::post('se-connecter',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'connexion']);
+            // 2FA — étape 2 (code) et renvoi. Throttle dédié : un code n'a que
+            // 6 chiffres, il mérite une limite plus stricte que le login lui-même.
+            Route::post('verifier-code',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'verifierCode'])
+                ->middleware('throttle:8,1');
+            Route::post('renvoyer-code',[\App\Http\Controllers\Apiv1\Admin\AuthController::class,'renvoyerCode'])
+                ->middleware('throttle:3,1');
         });
         Route::middleware('auth:sanctum')->group(function () {
             Route::prefix('panel-admin')->group(function () {
