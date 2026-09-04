@@ -4,7 +4,7 @@
 
     @php
       $isDisabled = ($statut ?? '') === 'DESACTIVEE';
-      $title = $isDisabled ? 'Plateforme indisponible' : 'Site en maintenance';
+      $title = $title ?? ($isDisabled ? 'Plateforme indisponible' : 'Site en maintenance');
       $subtitle = $message ?? ($isDisabled
         ? 'La plateforme est actuellement désactivée. Veuillez réessayer plus tard.'
         : 'Nous améliorons actuellement votre expérience. Merci de votre patience, nous serons bientôt de retour !');

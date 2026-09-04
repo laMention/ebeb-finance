@@ -3,8 +3,9 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Toutes les routes web grand public sont soumises au kill switch de la plateforme.
-Route::middleware('plateforme.actif')->group(function () {
+// Toutes les routes web grand public sont soumises au kill switch de la plateforme
+// et au contrôle indépendant d'activation de la surface "Site Web".
+Route::middleware(['plateforme.actif', 'plateforme.surface:SITE_WEB'])->group(function () {
     Auth::routes();
 
     Route::middleware(['auth', 'verified'])->group(function () {

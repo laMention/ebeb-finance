@@ -169,7 +169,8 @@ Route::middleware('plateforme.actif')->group(function () {
 //============================================ API PANEL ADMINISTRATION =========================================
 
 // Gate global — bloqué en MAINTENANCE / DESACTIVEE (le panel central reste hors de cette portée)
-Route::middleware('plateforme.actif')->group(function () {
+// + contrôle indépendant d'activation de la surface "Panel Admin".
+Route::middleware(['plateforme.actif', 'plateforme.surface:PANEL_ADMIN'])->group(function () {
 
     Route::prefix('administration')->group(function () {
         // Public — branding plateforme (sans authentification)
@@ -608,6 +609,9 @@ Route::prefix('control-panel')->group(function () {
         Route::get('etat',      [\App\Http\Controllers\Apiv1\ControlPanel\PlatformStateController::class, 'show']);
         Route::put('etat',      [\App\Http\Controllers\Apiv1\ControlPanel\PlatformStateController::class, 'update']);
         Route::get('historique',[\App\Http\Controllers\Apiv1\ControlPanel\PlatformStateController::class, 'historique']);
+
+        Route::get('surfaces',           [\App\Http\Controllers\Apiv1\ControlPanel\PlatformSurfaceStateController::class, 'index']);
+        Route::put('surfaces/{surface}', [\App\Http\Controllers\Apiv1\ControlPanel\PlatformSurfaceStateController::class, 'update']);
     });
 });
 //============================================ /FIN API PANEL CENTRAL =========================================

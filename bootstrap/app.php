@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.perm'        => \App\Http\Middleware\CheckAdminPermission::class,
             'compte.actif'      => \App\Http\Middleware\VerificationStatutCompteUtilisateurMiddleware::class,
             'plateforme.actif'  => \App\Http\Middleware\PlatformStatusMiddleware::class,
+            'plateforme.surface'=> \App\Http\Middleware\PlatformSurfaceStatusMiddleware::class,
             'abilities'         => CheckAbilities::class,
             'ability'           => CheckForAnyAbility::class,
         ]);
