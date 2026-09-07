@@ -405,6 +405,24 @@ class NotificationService
         ]);
     }
 
+    /**
+     * Prévient l'utilisateur que le total de ses montants fixes configurés
+     * dépassait le paiement reçu et n'a donc pas été appliqué pour cette
+     * transaction — les taux par défaut du système ont été utilisés à la
+     * place. Sa configuration enregistrée n'a pas été modifiée.
+     */
+    public function notifierMontantsFixesIgnores(User $user, array $libellesCotisations, float $montantPaiement): void
+    {
+        $liste = implode(', ', $libellesCotisations);
+
+        $this->envoyerNotification($user->id, 'IN_APP', 'MONTANTS_FIXES_IGNORES', [
+            'titre'   => 'Montants configurés non appliqués',
+            'message' => "Le total de vos montants fixes configurés ({$liste}) dépassait le paiement reçu de "
+                . "{$this->fcfa($montantPaiement)}. Les taux par défaut ont été appliqués pour cette transaction "
+                . "uniquement — votre configuration reste inchangée.",
+        ]);
+    }
+
     public function notifierCommission(User $user, float $montant): void
     {
         $this->envoyerNotification($user->id, 'IN_APP', 'COMMISSION_PLATEFORME', [

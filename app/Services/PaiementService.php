@@ -154,9 +154,16 @@ class PaiementService
             ];
         }
 
-        // Fallback direct par compte_mobile_money_id (ex: intégration API opérateur)
+        // Fallback direct par compte_mobile_money_id (ex: intégration API opérateur).
+        // `operateur_source` est NOT NULL en base (paiement_entrants) : à défaut d'une
+        // valeur explicite fournie par l'appelant, l'opérateur enregistré sur le compte
+        // lui-même fait foi — sans ce repli, ce chemin laissait `$operateurSource` non
+        // défini (le destructuring à 3 éléments de traiterPaiement() n'en recevait que 2)
+        // et l'insertion échouait avec une violation de contrainte.
         $compte = CompteMobileMoney::with('user')->findOrFail($data['compte_mobile_money_id']);
-        return [$compte->user, $compte];
+        $operateurSource = $data['operateur_source'] ?? $compte->operateur;
+
+        return [$compte->user, $compte, $operateurSource, $compte->id];
     }
 
     private function chargerConfig(User $user): array
@@ -204,8 +211,28 @@ class PaiementService
         // ── Cotisations (par ordre de priorité utilisateur, puis fallback par défaut) ──
         $cotisations = [];
         $typeIdsAvecRegleUtilisateur = [];
+        $montantsFixesIgnores = [];
+
+        // Montants fixes configurés par l'utilisateur dont le total dépasse le
+        // paiement reçu (ex. CNPS 2000F + AMU 1000F + AXA 1000F fixe pour un
+        // paiement de 1500F) : appliqués tels quels, ils videraient (ou
+        // dépasseraient) le paiement et ne laisseraient rien à l'utilisateur.
+        // Ignorés pour CETTE transaction uniquement — la configuration
+        // enregistrée (ReglePrelevement) n'est jamais modifiée ; les types
+        // concernés retombent sur le taux par défaut du système ci-dessous,
+        // comme s'ils n'avaient aucune règle utilisateur.
+        $totalFixeUtilisateur = $config['regles_prelevements']
+            ->filter(fn ($regle) => $regle->type_calcul === 'FIXE')
+            ->reduce(fn ($carry, $regle) => bcadd($carry, (string) $regle->valeur, 2), '0.00');
+        $montantsFixesDepassent = bccomp($totalFixeUtilisateur, '0.00', 2) > 0
+            && bccomp($totalFixeUtilisateur, $montantBrut, 2) > 0;
 
         foreach ($config['regles_prelevements'] as $regle) {
+            if ($montantsFixesDepassent && $regle->type_calcul === 'FIXE') {
+                $montantsFixesIgnores[] = $regle->type_cotisation;
+                continue;
+            }
+
             $typeIdsAvecRegleUtilisateur[] = $regle->type_cotisation_id;
             $montantCot = $regle->type_calcul === 'FIXE'
                 ? (string) $regle->valeur
@@ -259,13 +286,14 @@ class PaiementService
         $montantNet = bccomp($tmp, '0.00', 2) > 0 ? $tmp : '0.00';
 
         return [
-            'montant_brut'      => $montantBrut,
-            'epargne'           => $montantEpargne,
-            'objectif_epargne'  => $objectifEpargne,
-            'cotisations'       => $cotisations,
-            'total_cotisations' => $totalCotisations,
-            'commission'        => $commission,
-            'montant_net'       => $montantNet,
+            'montant_brut'           => $montantBrut,
+            'epargne'                => $montantEpargne,
+            'objectif_epargne'       => $objectifEpargne,
+            'cotisations'            => $cotisations,
+            'total_cotisations'      => $totalCotisations,
+            'commission'             => $commission,
+            'montant_net'            => $montantNet,
+            'montants_fixes_ignores' => $montantsFixesIgnores,
         ];
     }
 
@@ -392,6 +420,25 @@ class PaiementService
             // 1. Paiement reçu
             $this->notificationService->notifierPaiementRecu($user, $repartition['montant_brut']);
 
+            // 1bis. Montants fixes configurés ignorés pour cette transaction
+            if (!empty($repartition['montants_fixes_ignores'])) {
+                $libelles = array_map(fn ($type) => $type->libelle, $repartition['montants_fixes_ignores']);
+
+                $this->notificationService->notifierMontantsFixesIgnores(
+                    $user,
+                    $libelles,
+                    (float) $repartition['montant_brut'],
+                );
+
+                AlerteGenerator::transaction(
+                    'AVERTISSEMENT',
+                    'Montants fixes configurés non appliqués',
+                    "{$user->prenom} {$user->nom} : le total des montants fixes configurés (" . implode(', ', $libelles) . ") "
+                        . "dépassait le paiement reçu de " . number_format((float) $repartition['montant_brut'], 0, ',', ' ') . " FCFA. "
+                        . "Les taux par défaut du système ont été appliqués pour cette transaction.",
+                );
+            }
+
             // 2. Épargne
             if ($repartition['epargne'] > 0 && $repartition['objectif_epargne']) {
                 $objectif = $repartition['objectif_epargne'];
@@ -449,15 +496,19 @@ class PaiementService
     private function formaterRepartition(array $repartition): array
     {
         return [
-            'montant_brut'      => $repartition['montant_brut'],
-            'epargne'           => $repartition['epargne'],
-            'total_cotisations' => $repartition['total_cotisations'],
-            'commission'        => $repartition['commission'],
-            'montant_net'       => $repartition['montant_net'],
-            'cotisations'       => array_map(fn($c) => [
+            'montant_brut'           => $repartition['montant_brut'],
+            'epargne'                => $repartition['epargne'],
+            'total_cotisations'      => $repartition['total_cotisations'],
+            'commission'             => $repartition['commission'],
+            'montant_net'            => $repartition['montant_net'],
+            'cotisations'            => array_map(fn($c) => [
                 'libelle' => $c['type_cotisation']->libelle,
                 'montant' => $c['montant'],
             ], $repartition['cotisations']),
+            'montants_fixes_ignores' => array_map(
+                fn ($type) => $type->libelle,
+                $repartition['montants_fixes_ignores'],
+            ),
         ];
     }
 }
