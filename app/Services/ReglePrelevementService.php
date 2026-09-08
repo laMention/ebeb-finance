@@ -128,6 +128,17 @@ class ReglePrelevementService
                 ];
             }
 
+            // CNPS/CMU (est_obligatoire) : le prélèvement ne peut jamais être
+            // désactivé par l'utilisateur — seul son taux reste ajustable.
+            // Contrôle serveur, pas seulement côté mobile (le bouton y est
+            // verrouillé, mais l'API doit refuser même un appel direct).
+            if ($typeCotisation->est_obligatoire && array_key_exists('est_actif', $data) && !$data['est_actif']) {
+                return [
+                    'success' => false,
+                    'message' => "La cotisation {$typeCotisation->libelle} est obligatoire et ne peut pas être désactivée.",
+                ];
+            }
+
             // Valider la valeur selon le type de calcul
             $typeCalcul = mettre_en_majuscule($data['type_calcul']);
             $valeur = (float) $data['valeur'];
@@ -165,10 +176,19 @@ class ReglePrelevementService
                 }
             }
 
-            // Chercher une règle existante pour ce type
-            $regleExistante = ReglePrelevement::where('user_id', $userId)
+            // Chercher une règle existante pour ce type, y compris supprimée
+            // (soft delete) : la contrainte d'unicité en base ignore les
+            // lignes supprimées, donc reconfigurer un type déjà retiré doit
+            // restaurer l'ancienne ligne plutôt que d'en insérer une
+            // nouvelle qui percuterait l'index sur la ligne trashed.
+            $regleExistante = ReglePrelevement::withTrashed()
+                ->where('user_id', $userId)
                 ->where('type_cotisation_id', $data['type_cotisation_id'])
                 ->first();
+
+            if ($regleExistante && $regleExistante->trashed()) {
+                $regleExistante->restore();
+            }
 
             $isCreation = !$regleExistante;
 
@@ -256,6 +276,16 @@ class ReglePrelevementService
     {
         try {
             $nouvelEtat = !$regle->est_actif;
+
+            // Même verrou que dans sauvegarderRegle() : CNPS/CMU ne peuvent
+            // jamais être désactivées par l'utilisateur.
+            if (!$nouvelEtat && $regle->type_cotisation?->est_obligatoire) {
+                return [
+                    'success' => false,
+                    'message' => "La cotisation {$regle->type_cotisation->libelle} est obligatoire et ne peut pas être désactivée.",
+                ];
+            }
+
             $regle->update(['est_actif' => $nouvelEtat]);
 
             $statut = $nouvelEtat ? 'activée' : 'désactivée';
@@ -371,19 +401,18 @@ class ReglePrelevementService
                 ];
             }
 
-            // Récupérer les types de cotisations globaux (user_id = NULL) et actifs
-            $typesGlobaux = TypeCotisation::where('est_actif', true)
-                ->whereNull('user_id')
+            // `type_cotisations` est un catalogue commun à tous les
+            // utilisateurs (types de cotisations partenaires proposés par la
+            // plateforme) : on récupère tous les types actifs, sans jamais
+            // filtrer par `user_id` — ce champ ne sert qu'à distinguer, pour
+            // un type donné, qui a le droit de le modifier/supprimer (ancien
+            // parcours de création libre), jamais à décider qui peut le voir
+            // ou le sélectionner. La relation avec l'utilisateur connecté se
+            // fait uniquement via `ReglePrelevement.user_id`, ci-dessous.
+            $types = TypeCotisation::where('est_actif', true)
+                ->with('partenaire')
                 ->orderBy('libelle')
                 ->get();
-
-            // Récupérer les types de cotisations personnalisés de l'utilisateur
-            $typesPersonnalises = TypeCotisation::where('user_id', $userId)
-                ->orderBy('libelle')
-                ->get();
-
-            // Fusionner les deux ensembles
-            $types = $typesGlobaux->concat($typesPersonnalises);
 
             // Récupérer les règles de l'utilisateur indexées par type_cotisation_id
             $reglesUtilisateur = $user->reglePrelevements()
@@ -401,10 +430,17 @@ class ReglePrelevementService
                     'categorie'           => $type->categorie,
                     'est_obligatoire'     => $type->est_obligatoire,
                     'description'         => $type->description,
-                    'est_personnalise'    => !is_null($type->user_id),
+                    // `type_cotisations` n'a plus de notion de propriétaire
+                    // (colonne `user_id` retirée) : le catalogue est
+                    // entièrement partagé, ce champ est conservé pour la
+                    // compatibilité du format de réponse mais toujours faux.
+                    'est_personnalise'    => false,
+                    // Partenaire de reversement rattaché au type
+                    'partenaire_id'       => $type->partenaire_id,
+                    'partenaire_actif'    => $type->partenaire?->est_actif ?? false,
                     // Valeurs par défaut du type, utilisées par le mobile pour
                     // pré-remplir le taux quand l'utilisateur n'a pas encore
-                    // configuré de règle (voir `regle` ci-dessous, null dans ce cas).
+                    // configuré de règle
                     'montant_paiement_mensuel' => $type->montant_paiement_mensuel,
                     'default_type_calcul'      => $type->default_type_calcul,
                     'default_valeur'           => $type->default_valeur,
@@ -432,7 +468,10 @@ class ReglePrelevementService
                 'total_pourcentages'    => $sommePourcentages,
                 'total_types'           => $typesAvecRegles->count(),
                 'total_configures'      => $reglesUtilisateur->count(),
-                'total_personnalises'   => $typesPersonnalises->count(),
+                // Vestige : `type_cotisations` n'a plus de propriétaire
+                // depuis le retrait de `user_id`, cette notion n'a donc plus
+                // de sens — conservé à 0 pour ne pas casser le format.
+                'total_personnalises'   => 0,
             ];
 
         } catch (\Exception $e) {

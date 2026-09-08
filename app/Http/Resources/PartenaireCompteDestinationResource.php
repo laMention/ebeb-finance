@@ -16,6 +16,7 @@ class PartenaireCompteDestinationResource extends JsonResource
             'numero_compte'    => $this->numero_compte,
             'banque_operateur' => $this->banque_operateur,
             'est_actif'        => $this->est_actif,
+            'est_principal'    => $this->est_principal,
             'created_at'       => $this->created_at?->format('Y-m-d'),
         ];
     }

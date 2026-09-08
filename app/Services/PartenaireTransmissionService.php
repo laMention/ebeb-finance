@@ -67,6 +67,8 @@ class PartenaireTransmissionService
             ->filter()
             ->values();
 
+        $compteDestination = $reversement->compteDestination;
+
         $payload = [
             'reversement' => [
                 'reference'        => $reversement->reference,
@@ -80,6 +82,15 @@ class PartenaireTransmissionService
                 'code' => $partenaire->code,
                 'type' => $partenaire->type,
             ],
+            // Compte de reversement du partenaire effectivement utilisé (résolu à la
+            // création du reversement — voir ReversementAdminService::creer()) : le
+            // partenaire doit savoir sur quel compte reconcilier ce versement.
+            'compte_destination' => $compteDestination ? [
+                'libelle'          => $compteDestination->libelle,
+                'type_compte'      => $compteDestination->type_compte,
+                'numero_compte'    => $compteDestination->numero_compte,
+                'banque_operateur' => $compteDestination->banque_operateur,
+            ] : null,
             'travailleurs_independants' => $travailleurs,
         ];
 

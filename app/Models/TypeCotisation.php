@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'libelle', 'code', 'categorie', 'est_obligatoire', 'est_actif',
-    'description', 'user_id',
+    'description', 'partenaire_id',
     'default_type_calcul', 'default_valeur', 'default_est_actif', 'default_date_entree_en_vigueur','montant_paiement_mensuel'
 ])]
 class TypeCotisation extends Model
@@ -44,7 +44,8 @@ class TypeCotisation extends Model
         return $this->hasMany(Cotisation::class, 'type_cotisation_id');
     }
 
-    public function user(){
-        return $this->belongsTo(User::class);
+    public function partenaire()
+    {
+        return $this->belongsTo(PartenairesFinancier::class, 'partenaire_id');
     }
 }

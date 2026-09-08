@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Models\Administrateur;
 use App\Models\Cotisation;
 use App\Models\Operation;
+use App\Models\PartenaireCompteDestination;
 use App\Models\PartenairesFinancier;
 use App\Models\Reversement;
 use App\Models\ReversementOperation;
+use App\Models\TypeCotisation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,6 +33,30 @@ class ReversementAdminService
             'ASSURANCE' => ['ASSURANCE_PERSONNALISEE'],
             default     => ['COTISATION_PERSONNALISEE'],
         };
+    }
+
+    /**
+     * Requête de base des opérations éligibles à un reversement pour ce partenaire.
+     *
+     * CNPS/AMU : un seul partenaire de chaque, aucune ambiguïté — comportement
+     * historique inchangé (panier `type_operation`).
+     * Tout autre type (ASSURANCE, etc.) : plusieurs partenaires peuvent partager
+     * le même panier `type_operation` (ex. AXA et NSIA sont tous deux `ASSURANCE`) —
+     * on résout précisément via les `TypeCotisation` explicitement rattachées à CE
+     * partenaire (`type_cotisations.partenaire_id`), pas via le panier grossier.
+     */
+    private function operationsEligiblesQuery(PartenairesFinancier $partenaire)
+    {
+        $query = Operation::where('statut', 'SUCCES')->whereNotNull('operation_parent_id');
+
+        if (in_array($partenaire->type, ['CNPS', 'AMU'], true)) {
+            $query->whereIn('type_operation', $this->typesOperations($partenaire->type));
+        } else {
+            $typeCotisationIds = TypeCotisation::where('partenaire_id', $partenaire->id)->pluck('id');
+            $query->whereIn('type_cotisation_id', $typeCotisationIds);
+        }
+
+        return $query;
     }
 
     // -------------------------------------------------------------------------
@@ -126,7 +152,7 @@ class ReversementAdminService
     public function lister(array $params): array
     {
         try {
-            $query = Reversement::with(['partenaire'])
+            $query = Reversement::with(['partenaire', 'compteDestination'])
                 ->withCount('reversementOperations');
 
             if (!empty($params['search'])) {
@@ -189,7 +215,7 @@ class ReversementAdminService
     public function afficher(Reversement $reversement): array
     {
         try {
-            $reversement->load(['partenaire', 'operations.user', 'operations.type_cotisation']);
+            $reversement->load(['partenaire', 'compteDestination', 'operations.user', 'operations.type_cotisation']);
 
             $peutAnnuler = false;
             $raisonBlocage = null;
@@ -250,6 +276,12 @@ class ReversementAdminService
                             'code' => $reversement->partenaire->code,
                             'type' => $reversement->partenaire->type,
                         ] : null,
+                        'compte_destination' => $reversement->compteDestination ? [
+                            'id'            => $reversement->compteDestination->id,
+                            'libelle'       => $reversement->compteDestination->libelle,
+                            'type_compte'   => $reversement->compteDestination->type_compte,
+                            'numero_compte' => $reversement->compteDestination->numero_compte,
+                        ] : null,
                         'nb_operations'    => $reversement->operations->count(),
                     ],
                     'operations'    => $operations,
@@ -271,12 +303,8 @@ class ReversementAdminService
     {
         try {
             $partenaire = PartenairesFinancier::findOrFail($params['partenaire_id']);
-            $types      = $this->typesOperations($partenaire->type);
 
-            $query = Operation::with(['user'])
-                ->whereIn('type_operation', $types)
-                ->where('statut', 'SUCCES')
-                ->whereNotNull('operation_parent_id');
+            $query = $this->operationsEligiblesQuery($partenaire)->with(['user']);
 
             if (!empty($params['periode_debut'])) {
                 $query->where('date_operation', '>=', $params['periode_debut']);
@@ -350,13 +378,8 @@ class ReversementAdminService
                 ];
             }
 
-            $types = $this->typesOperations($partenaire->type);
-
             // Trouver les opérations éligibles
-            $query = Operation::with(['user', 'type_cotisation'])
-                ->whereIn('type_operation', $types)
-                ->where('statut', 'SUCCES')
-                ->whereNotNull('operation_parent_id');
+            $query = $this->operationsEligiblesQuery($partenaire)->with(['user', 'type_cotisation']);
 
             if (!empty($data['periode_debut'])) {
                 $query->where('date_operation', '>=', $data['periode_debut']);
@@ -381,7 +404,15 @@ class ReversementAdminService
                 return ['success' => false, 'message' => 'Aucune opération éligible pour cette période et ce partenaire.', 'data' => null];
             }
 
-            DB::transaction(function () use ($operations, $partenaire, $data, $admin, $montantTotal, &$reversement) {
+            // Compte de reversement effectivement utilisé — le principal actif du
+            // partenaire, à défaut le premier compte actif (repli) — enregistré pour
+            // traçabilité, jamais laissé implicite.
+            $compteDestination = PartenaireCompteDestination::where('partenaires_financier_id', $partenaire->id)
+                ->where('est_actif', true)
+                ->orderByDesc('est_principal')
+                ->first();
+
+            DB::transaction(function () use ($operations, $partenaire, $compteDestination, $data, $admin, $montantTotal, &$reversement) {
                 $reversement = Reversement::create([
                     'reference'                => 'REV-' . strtoupper(Str::random(8)),
                     'montant_total'            => $montantTotal,
@@ -389,6 +420,7 @@ class ReversementAdminService
                     'statut'                   => Reversement::STATUT_EN_ATTENTE,
                     'initie_par'               => "{$admin->prenom} {$admin->nom}",
                     'partenaires_financier_id' => $partenaire->id,
+                    'compte_destination_id'    => $compteDestination?->id,
                     'periode_debut'            => $data['periode_debut'] ?? null,
                     'periode_fin'              => $data['periode_fin'] ?? null,
                 ]);
@@ -433,7 +465,7 @@ class ReversementAdminService
 
             return [
                 'success' => true,
-                'data'    => ['reversement' => $this->formatItem($reversement->fresh()->load('partenaire'))],
+                'data'    => ['reversement' => $this->formatItem($reversement->fresh()->load(['partenaire', 'compteDestination']))],
                 'message' => 'Reversement créé avec succès',
             ];
         } catch (\Exception $e) {
@@ -453,7 +485,7 @@ class ReversementAdminService
             return [
                 'success' => $resultat['success'],
                 'message' => $resultat['message'],
-                'data'    => ['reversement' => $this->formatItem($reversement->fresh()->load('partenaire'))],
+                'data'    => ['reversement' => $this->formatItem($reversement->fresh()->load(['partenaire', 'compteDestination']))],
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'data' => null];
@@ -486,7 +518,7 @@ class ReversementAdminService
 
             return [
                 'success' => true,
-                'data'    => ['reversement' => $this->formatItem($reversement->fresh(['partenaire']))],
+                'data'    => ['reversement' => $this->formatItem($reversement->fresh(['partenaire', 'compteDestination']))],
                 'message' => 'Reversement annulé avec succès',
             ];
         } catch (\Exception $e) {
@@ -520,6 +552,12 @@ class ReversementAdminService
                 'nom'  => $r->partenaire->nom,
                 'code' => $r->partenaire->code,
                 'type' => $r->partenaire->type,
+            ] : null,
+            'compte_destination' => $r->relationLoaded('compteDestination') && $r->compteDestination ? [
+                'id'            => $r->compteDestination->id,
+                'libelle'       => $r->compteDestination->libelle,
+                'type_compte'   => $r->compteDestination->type_compte,
+                'numero_compte' => $r->compteDestination->numero_compte,
             ] : null,
             'created_at'       => $r->created_at?->format('Y-m-d H:i'),
         ];

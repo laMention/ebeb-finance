@@ -109,9 +109,9 @@ class User extends Authenticatable
         return $this->hasOne(DeclarationRevenu::class);
     }
 
-    public function typeCotisations(){
-        return $this->hasMany(TypeCotisation::class);
-    }
+    // public function typeCotisations(){
+    //     return $this->hasMany(TypeCotisation::class);
+    // }
 
     public function portefeuilleEpargnes()
     {

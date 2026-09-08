@@ -12,7 +12,7 @@ class TypeCotisationService
     public function listerTypesCotisations(array $filtres = []): array
     {
         try {
-            $query = TypeCotisation::query();
+            $query = TypeCotisation::with('partenaire');
 
             if (isset($filtres['categorie'])) {
                 $query->where('categorie', mettre_en_majuscule($filtres['categorie']));
@@ -54,7 +54,7 @@ class TypeCotisationService
     public function obtenirTypeCotisation(string $id): array
     {
         try {
-            $type = TypeCotisation::find($id);
+            $type = TypeCotisation::with('partenaire')->find($id);
 
             if (!$type) {
                 return [
@@ -111,6 +111,7 @@ class TypeCotisationService
                 'default_est_actif'              => $data['default_est_actif'] ?? false,
                 'default_date_entree_en_vigueur' => $data['default_date_entree_en_vigueur'] ?? null,
                 'montant_paiement_mensuel'       => array_key_exists('montant_paiement_mensuel', $data) ? $data['montant_paiement_mensuel'] : null,
+                'partenaire_id'                  => $data['partenaire_id'] ?? null,
             ]);
 
             \Log::info('Type de cotisation créé', ['id' => $type->id, 'code' => $type->code]);
@@ -118,7 +119,7 @@ class TypeCotisationService
             return [
                 'success' => true,
                 'message' => 'Type de cotisation créé avec succès',
-                'data'    => $type,
+                'data'    => $type->load('partenaire'),
             ];
 
         } catch (\Exception $e) {
@@ -196,6 +197,10 @@ class TypeCotisationService
                 $champsAMettreAJour['description'] = $data['description'];
             }
 
+            if (array_key_exists('partenaire_id', $data)) {
+                $champsAMettreAJour['partenaire_id'] = $data['partenaire_id'];
+            }
+
             if (empty($champsAMettreAJour)) {
                 return [
                     'success' => false,
@@ -210,7 +215,7 @@ class TypeCotisationService
             return [
                 'success' => true,
                 'message' => 'Type de cotisation modifié avec succès',
-                'data'    => $type->fresh(),
+                'data'    => $type->fresh()->load('partenaire'),
             ];
 
         } catch (\Exception $e) {

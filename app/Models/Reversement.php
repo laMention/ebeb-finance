@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'reference', 'montant_total', 'date_reversement', 'statut', 'initie_par',
-    'partenaires_financier_id',
+    'partenaires_financier_id', 'compte_destination_id',
     'periode_debut', 'periode_fin', 'date_execution',
     'motif_annulation', 'annule_par',
     'transmission_statut', 'transmission_reponse', 'transmission_date',
@@ -60,6 +60,11 @@ class Reversement extends Model
     public function paternaire_financier(): BelongsTo
     {
         return $this->belongsTo(PartenairesFinancier::class, 'partenaires_financier_id');
+    }
+
+    public function compteDestination(): BelongsTo
+    {
+        return $this->belongsTo(PartenaireCompteDestination::class, 'compte_destination_id');
     }
 
     public function operations(): BelongsToMany

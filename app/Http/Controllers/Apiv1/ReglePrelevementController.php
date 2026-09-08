@@ -75,6 +75,8 @@ class ReglePrelevementController extends BaseController
             $userId = $request->user()->id;
             $resultat = $this->reglePrelevementService->obtenirTypeCotisationsAvecRegles($userId);
 
+            \Log::info('Resultat types cotisations avec règles', ['resultat' => $resultat]);
+
             if ($resultat['success'] === false) {
                 return $this->sendError($resultat['message'], [], 400);
             }

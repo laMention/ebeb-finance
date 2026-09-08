@@ -111,25 +111,17 @@ Route::middleware('plateforme.actif')->group(function () {
             Route::prefix('objectif-epargne')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'index']);
 
-                // Mutations — compte actif requis
+                // Création — accessible dès l'inscription, avant même que le compte
+                // soit actif (même exemption que les règles de prélèvement : l'étape
+                // « Épargne automatique » du parcours d'inscription doit pouvoir
+                // enregistrer l'objectif pendant que les documents sont en cours de
+                // vérification).
+                Route::post('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'store']);
+
+                // Autres mutations — compte actif requis
                 Route::middleware('compte.actif')->group(function () {
-                    Route::post('/', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'store']);
                     Route::patch('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'update']);
                     Route::delete('/{objectifEpargne}', [\App\Http\Controllers\Apiv1\ObjectifEpargneController::class, 'destroy']);
-                });
-            });
-
-            // Types de cotisations personnalisés
-            Route::prefix('types-cotisation-personnalises')->group(function () {
-                Route::get('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'index']);
-                Route::get('/suggestions', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'suggestions']);
-                Route::get('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'show']);
-
-                // Mutations — compte actif requis
-                Route::middleware('compte.actif')->group(function () {
-                    Route::post('/', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'store']);
-                    Route::put('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'update']);
-                    Route::delete('/{typeCotisation}', [\App\Http\Controllers\Apiv1\TypeCotisationPersonnaliseeController::class, 'destroy']);
                 });
             });
 

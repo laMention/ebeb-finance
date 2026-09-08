@@ -32,6 +32,7 @@ class UpdateTypeCotisationRequest extends FormRequest
             'default_date_entree_en_vigueur'  => ['sometimes', 'nullable', 'date'],
             'description'                     => ['nullable', 'string'],
             'montant_paiement_mensuel'        => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'partenaire_id'                   => ['sometimes', 'nullable', 'uuid', 'exists:partenaires_financiers,id'],
         ];
     }
 
@@ -90,6 +91,9 @@ class UpdateTypeCotisationRequest extends FormRequest
             'description.string' => 'La description doit être une chaîne de caractères.',
             'montant_paiement_mensuel.numeric' => 'Le montant du paiement mensuel doit être un nombre.',
             'montant_paiement_mensuel.min' => 'Le montant du paiement mensuel doit être supérieure ou égale à 0.',
+
+            'partenaire_id.uuid'   => 'L\'identifiant du partenaire est invalide.',
+            'partenaire_id.exists' => 'Le partenaire sélectionné n\'existe pas.',
         ];
     }
 }

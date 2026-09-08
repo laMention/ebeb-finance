@@ -28,9 +28,11 @@ class StoreTypeCotisationRequest extends FormRequest
             'default_est_actif'               => ['nullable', 'boolean'],
             'default_date_entree_en_vigueur'  => ['nullable', 'date'],
             'description'                     => ['nullable', 'string'],
-            // Source de vérité du suivi de conformité pour AMU (et les cotisations personnalisées,
-            // validées séparément via StoreTypeCotisationPersonnaliseeRequest) — toujours requis pour AMU.
+            // Source de vérité du suivi de conformité pour AMU — toujours requis pour AMU.
             'montant_paiement_mensuel'        => ['required_if:categorie,AMU', 'nullable', 'numeric', 'min:0'],
+            // Partenaire de reversement associé (ex. AXA Assurance) — nul pour les types système
+            // (CNPS, AMU) qui ne sont pas rattachés à un partenaire externe.
+            'partenaire_id'                   => ['nullable', 'uuid', 'exists:partenaires_financiers,id'],
         ];
     }
 
@@ -62,6 +64,9 @@ class StoreTypeCotisationRequest extends FormRequest
             'montant_paiement_mensuel.numeric' => 'Le montant du paiement mensuel doit être un nombre.',
             'montant_paiement_mensuel.min' => 'Le montant du paiement mensuel doit être supérieure ou égale à 0.',
             'montant_paiement_mensuel.required_if' => 'Le montant du paiement mensuel est obligatoire pour une cotisation AMU (source de vérité du suivi de conformité).',
+
+            'partenaire_id.uuid'   => 'L\'identifiant du partenaire est invalide.',
+            'partenaire_id.exists' => 'Le partenaire sélectionné n\'existe pas.',
         ];
     }
 }

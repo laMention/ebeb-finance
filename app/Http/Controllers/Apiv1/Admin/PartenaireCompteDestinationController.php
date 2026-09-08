@@ -9,6 +9,7 @@ use App\Models\PartenairesFinancier;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PartenaireCompteDestinationController extends BaseController
 {
@@ -41,9 +42,17 @@ class PartenaireCompteDestinationController extends BaseController
                 'numero_compte'    => 'required|string|max:100',
                 'banque_operateur' => 'nullable|string|max:255',
                 'est_actif'        => 'sometimes|boolean',
+                'est_principal'    => 'sometimes|boolean',
             ]);
 
-            $compte = $partenaireFinancier->comptesDestination()->create($validated);
+            $compte = DB::transaction(function () use ($partenaireFinancier, $validated) {
+                if (!empty($validated['est_principal'])) {
+                    $partenaireFinancier->comptesDestination()->update(['est_principal' => false]);
+                }
+
+                return $partenaireFinancier->comptesDestination()->create($validated);
+            });
+
             AuditLogger::log('PARTENAIRE_COMPTE.CREATE', $request->user(), 'partenaire_comptes_destination',
                 (string) $compte->id, null, $validated);
 
@@ -70,10 +79,22 @@ class PartenaireCompteDestinationController extends BaseController
                 'numero_compte'    => 'sometimes|required|string|max:100',
                 'banque_operateur' => 'nullable|string|max:255',
                 'est_actif'        => 'sometimes|boolean',
+                'est_principal'    => 'sometimes|boolean',
             ]);
 
-            $avant = $compteDestination->only(['libelle', 'type_compte', 'numero_compte', 'banque_operateur', 'est_actif']);
-            $compteDestination->update($validated);
+            $avant = $compteDestination->only(['libelle', 'type_compte', 'numero_compte', 'banque_operateur', 'est_actif', 'est_principal']);
+
+            DB::transaction(function () use ($partenaireFinancier, $compteDestination, $validated) {
+                // Un seul compte principal par partenaire : désactiver les autres avant d'appliquer.
+                if (!empty($validated['est_principal'])) {
+                    $partenaireFinancier->comptesDestination()
+                        ->where('id', '!=', $compteDestination->id)
+                        ->update(['est_principal' => false]);
+                }
+
+                $compteDestination->update($validated);
+            });
+
             AuditLogger::log('PARTENAIRE_COMPTE.UPDATE', $request->user(), 'partenaire_comptes_destination',
                 (string) $compteDestination->id, $avant, $validated);
 
