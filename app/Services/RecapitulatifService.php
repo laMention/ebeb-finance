@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Operation;
 use App\Models\ReglePrelevement;
+use App\Models\Remboursement;
 use App\Models\TypeCotisation;
 use App\Models\User;
 use Carbon\Carbon;
@@ -11,16 +12,23 @@ use Illuminate\Support\Collection;
 
 class RecapitulatifService
 {
-    // Argent effectivement reçu par l'utilisateur : paiements clients, mais
-    // aussi les remboursements de prélèvements erronés (panel admin) — un
-    // remboursement restitue de l'argent exactement comme un paiement, sans
-    // altérer l'opération originale (conservée pour traçabilité).
+    // Argent reçu de l'extérieur (paiements clients, reversements) — utilisé
+    // par `soldesGlobaux()`, qui n'effectue aucun filtrage par cotisation
+    // configurée : y ajouter les remboursements (voir TYPES_RECU_GLOBAL) est
+    // le seul mécanisme disponible pour restituer un montant dans ce calcul.
     private const TYPES_RECU = [
         'PAIEMENT_CLIENT',
         'REVERSEMENT',
         'REVERSEMENT_ESCROW',
-        'REMBOURSEMENT_COTISATION',
     ];
+
+    // `soldesGlobaux()` uniquement : un remboursement restitue de l'argent
+    // exactement comme un paiement, sans altérer l'opération originale
+    // (conservée pour traçabilité). `recapitulatif()`, lui, nette chaque
+    // remboursement directement contre la cotisation d'origine (voir
+    // `ventilerCotisations()`) — y ajouter aussi le remboursement ici
+    // compterait le même montant deux fois.
+    private const TYPES_RECU_GLOBAL = [...self::TYPES_RECU, 'REMBOURSEMENT_COTISATION'];
 
     private const TYPES_COTISATIONS = [
         'COTISATION_CNPS',
@@ -57,7 +65,7 @@ class RecapitulatifService
             ->get();
 
         $totalRecu       = $this->somme($operations, self::TYPES_RECU);
-        $cotisations     = $this->ventilerCotisations($operations);
+        $cotisations     = $this->ventilerCotisations($operations, $user->id);
         $totalCotisations= $cotisations->sum('montant');
         $commissions     = $this->ventilerCommissions($operations);
         $totalCommissions= $commissions->sum('montant');
@@ -104,14 +112,13 @@ class RecapitulatifService
     {
         $objectifCnps = (float) ($user->declarationRevenu?->montant_cotisation_mensuelle ?? 0);
 
-        $typesAdoptesIds = ReglePrelevement::where('user_id', $user->id)
-            ->pluck('type_cotisation_id');
-
+        // CNPS exclu ici : son objectif vient de declaration_revenus
+        // ci-dessus, pas de `montant_paiement_mensuel` — l'inclure via
+        // typeCotisationIdsConfigures() (qui le couvre, étant obligatoire)
+        // compterait son objectif deux fois.
         $autresTypes = TypeCotisation::where('est_actif', true)
             ->where('code', '!=', 'CNPS')
-            ->where(function ($q) use ($typesAdoptesIds) {
-                $q->where('est_obligatoire', true)->orWhereIn('id', $typesAdoptesIds);
-            })
+            ->whereIn('id', $this->typeCotisationIdsConfigures($user->id))
             ->get();
 
         $objectifAutres = (float) $autresTypes->sum(
@@ -119,6 +126,25 @@ class RecapitulatifService
         );
 
         return $objectifCnps + $objectifAutres;
+    }
+
+    /**
+     * Ids des `type_cotisations` réellement « configurés » par l'utilisateur :
+     * obligatoires (CNPS/AMU, jamais désactivables) ou avec une
+     * `ReglePrelevement` — jamais déterminé depuis le catalogue seul (voir
+     * `PaiementService::calculerRepartition()`, corrigé pour la même raison).
+     */
+    private function typeCotisationIdsConfigures(string $userId): array
+    {
+        $typesAdoptesIds = ReglePrelevement::where('user_id', $userId)
+            ->pluck('type_cotisation_id');
+
+        return TypeCotisation::where('est_actif', true)
+            ->where(function ($q) use ($typesAdoptesIds) {
+                $q->where('est_obligatoire', true)->orWhereIn('id', $typesAdoptesIds);
+            })
+            ->pluck('id')
+            ->all();
     }
 
     /**
@@ -133,7 +159,7 @@ class RecapitulatifService
             ->where('statut', 'SUCCES')
             ->get(['type_operation', 'montant']);
 
-        $totalRecu        = $this->somme($operations, self::TYPES_RECU);
+        $totalRecu        = $this->somme($operations, self::TYPES_RECU_GLOBAL);
         $totalCotisations = $this->somme($operations, self::TYPES_COTISATIONS);
         $totalCommissions = $this->somme($operations, self::TYPES_COMMISSIONS);
         $totalEpargne     = $this->somme($operations, ['EPARGNE']);
@@ -187,15 +213,44 @@ class RecapitulatifService
         ];
     }
 
-    private function ventilerCotisations(Collection $operations): Collection
+    /**
+     * Ventile les prélèvements de cotisation par type — uniquement les types
+     * réellement configurés par l'utilisateur (jamais un type prélevé à tort,
+     * voir `typeCotisationIdsConfigures()`), et nette chaque prélèvement des
+     * remboursements qui lui sont liés (même effectués après la période
+     * affichée — la traçabilité passe par `operation_id`, pas par la date).
+     */
+    private function ventilerCotisations(Collection $operations, string $userId): Collection
     {
-        return $operations
-            ->filter(fn ($op) => in_array($op->type_operation, self::TYPES_COTISATIONS))
-            ->groupBy(fn ($op) => $op->type_cotisation_id ?? $op->type_operation)
-            ->map(function (Collection $groupe) {
-                $premier  = $groupe->first();
-                $type     = $premier->type_cotisation;
-                $montant  = $groupe->sum(fn ($op) => (float) $op->montant);
+        $operationsCotisation = $operations
+            ->filter(fn ($op) => in_array($op->type_operation, self::TYPES_COTISATIONS) && $op->type_cotisation_id);
+
+        if ($operationsCotisation->isEmpty()) {
+            return collect();
+        }
+
+        $idsConfigures = $this->typeCotisationIdsConfigures($userId);
+
+        $montantsRembourses = Remboursement::whereIn('operation_id', $operationsCotisation->pluck('id'))
+            ->get()
+            ->groupBy('operation_id')
+            ->map(fn ($groupe) => (string) $groupe->sum('montant_rembourse'));
+
+        return $operationsCotisation
+            ->filter(fn ($op) => in_array($op->type_cotisation_id, $idsConfigures, true))
+            ->groupBy('type_cotisation_id')
+            ->map(function (Collection $groupe) use ($montantsRembourses) {
+                $premier = $groupe->first();
+                $type    = $premier->type_cotisation;
+
+                $montantBrut = $groupe->reduce(
+                    fn ($carry, $op) => bcadd($carry, (string) $op->montant, 2), '0.00'
+                );
+                $montantRembourse = $groupe->reduce(
+                    fn ($carry, $op) => bcadd($carry, $montantsRembourses[$op->id] ?? '0.00', 2), '0.00'
+                );
+                $montantNet = bcsub($montantBrut, $montantRembourse, 2);
+                $montantNet = bccomp($montantNet, '0.00', 2) > 0 ? $montantNet : '0.00';
 
                 return [
                     'type_operation'     => $premier->type_operation,
@@ -207,9 +262,11 @@ class RecapitulatifService
                     'type_cotisation_id' => $premier->type_cotisation_id,
                     'libelle'        => $type?->libelle ?? $this->libelleParDefaut($premier->type_operation),
                     'categorie'      => $type?->categorie ?? null,
-                    'montant'        => $this->formater($montant),
+                    'montant'        => $this->formater((float) $montantNet),
                 ];
-            });
+            })
+            // Masque un type intégralement remboursé — plus rien de réellement conservé à afficher.
+            ->filter(fn ($ligne) => (float) $ligne['montant'] > 0);
     }
 
     private function ventilerCommissions(Collection $operations): Collection
