@@ -154,12 +154,7 @@ class PaiementService
             ];
         }
 
-        // Fallback direct par compte_mobile_money_id (ex: intégration API opérateur).
-        // `operateur_source` est NOT NULL en base (paiement_entrants) : à défaut d'une
-        // valeur explicite fournie par l'appelant, l'opérateur enregistré sur le compte
-        // lui-même fait foi — sans ce repli, ce chemin laissait `$operateurSource` non
-        // défini (le destructuring à 3 éléments de traiterPaiement() n'en recevait que 2)
-        // et l'insertion échouait avec une violation de contrainte.
+        
         $compte = CompteMobileMoney::with('user')->findOrFail($data['compte_mobile_money_id']);
         $operateurSource = $data['operateur_source'] ?? $compte->operateur;
 
@@ -168,13 +163,13 @@ class PaiementService
 
     private function chargerConfig(User $user): array
     {
+        // Uniquement les règles de prélèvement actives de l'utilisateur —
+        // jamais le catalogue global `type_cotisations`, qui n'exprime
+        // aucune adhésion de l'utilisateur (voir `calculerRepartition()`).
         $userRegles = ReglePrelevement::where('user_id', $user->id)
             ->where('est_actif', true)
             ->with('type_cotisation')
             ->orderBy('ordre_priorite')
-            ->get();
-
-        $typesActifs = TypeCotisation::where('est_actif', true)
             ->get();
 
         return [
@@ -182,7 +177,6 @@ class PaiementService
                 ->where('est_actif', true)
                 ->first(),
             'regles_prelevements'  => $userRegles,
-            'type_cotisations'     => $typesActifs,
             'declaration_revenu'   => $user->declarationRevenu,
             'taux_commission'      => (string) ParametreGlobalService::get('TAUX_COMMISSION', '3.0'),
         ];
@@ -208,9 +202,9 @@ class PaiementService
         // ── Commission plateforme ─────────────────────────────────────────────
         $commission = bcmul($montantBrut, bcdiv($config['taux_commission'], '100', 4), 2);
 
-        // ── Cotisations (par ordre de priorité utilisateur, puis fallback par défaut) ──
+        // ── Cotisations — exclusivement les règles de prélèvement actives de
+        // l'utilisateur (jamais le catalogue global `type_cotisations`) ──────
         $cotisations = [];
-        $typeIdsAvecRegleUtilisateur = [];
         $montantsFixesIgnores = [];
 
         // Montants fixes configurés par l'utilisateur dont le total dépasse le
@@ -219,8 +213,10 @@ class PaiementService
         // dépasseraient) le paiement et ne laisseraient rien à l'utilisateur.
         // Ignorés pour CETTE transaction uniquement — la configuration
         // enregistrée (ReglePrelevement) n'est jamais modifiée ; les types
-        // concernés retombent sur le taux par défaut du système ci-dessous,
-        // comme s'ils n'avaient aucune règle utilisateur.
+        // concernés retombent sur le taux par défaut du système ci-dessous.
+        // Cette bascule ne concerne QUE les types que l'utilisateur a
+        // réellement configurés (voir ci-dessous) — jamais un type sans
+        // règle utilisateur.
         $totalFixeUtilisateur = $config['regles_prelevements']
             ->filter(fn ($regle) => $regle->type_calcul === 'FIXE')
             ->reduce(fn ($carry, $regle) => bcadd($carry, (string) $regle->valeur, 2), '0.00');
@@ -233,7 +229,6 @@ class PaiementService
                 continue;
             }
 
-            $typeIdsAvecRegleUtilisateur[] = $regle->type_cotisation_id;
             $montantCot = $regle->type_calcul === 'FIXE'
                 ? (string) $regle->valeur
                 : bcmul($montantBrut, bcdiv((string) $regle->valeur, '100', 4), 2);
@@ -245,11 +240,11 @@ class PaiementService
             ];
         }
 
-        foreach ($config['type_cotisations'] as $typeCotisation) {
-            if (in_array($typeCotisation->id, $typeIdsAvecRegleUtilisateur, true)) {
-                continue;
-            }
-
+        // Repli sur le taux par défaut du système — uniquement pour les
+        // types identifiés ci-dessus (une règle utilisateur réelle, juste
+        // ignorée pour cette transaction précise), jamais pour un type que
+        // l'utilisateur n'a jamais configuré.
+        foreach ($montantsFixesIgnores as $typeCotisation) {
             if (! $typeCotisation->default_est_actif) {
                 continue;
             }

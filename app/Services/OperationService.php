@@ -86,6 +86,7 @@ class OperationService
             'sous_operations.type_cotisation:id,libelle,code',
             'sous_operations.objectif_epargne:id,libelle',
             'operation_parent:id,reference,type_operation,montant',
+            'remboursement:id,operation_id',
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Operation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -60,9 +61,7 @@ class OperationResource extends JsonResource
 
     private function resoudreSens(string $type): string
     {
-        return in_array($type, ['PAIEMENT_CLIENT', 'REVERSEMENT', 'REVERSEMENT_ESCROW'])
-            ? 'CREDIT'
-            : 'DEBIT';
+        return in_array($type, Operation::TYPES_CREDIT) ? 'CREDIT' : 'DEBIT';
     }
 
     private function resoudreIcone(string $type): string
@@ -77,6 +76,7 @@ class OperationResource extends JsonResource
             'COMMISSION_PLATEFORME', 'COMMISSION'      => 'commission',
             'VIREMENT'                                 => 'virement',
             'REVERSEMENT', 'REVERSEMENT_ESCROW'        => 'reversement',
+            'REMBOURSEMENT_COTISATION'                 => 'remboursement',
             'REPORT_COTISATION'                        => 'report',
             'AJUSTEMENT'                               => 'ajustement',
             'ESCROW'                                   => 'escrow',
@@ -98,6 +98,7 @@ class OperationResource extends JsonResource
             'VIREMENT'                => 'Virement Mobile Money',
             'REVERSEMENT'             => 'Reversement',
             'REVERSEMENT_ESCROW'      => 'Libération escrow',
+            'REMBOURSEMENT_COTISATION'=> 'Remboursement',
             'REPORT_COTISATION'       => 'Report cotisation',
             'AJUSTEMENT'              => 'Ajustement',
             'ESCROW'                  => 'Blocage escrow',

@@ -19,7 +19,7 @@ class Operation extends Model
     public $incrementing = false;
     protected $keyType   = 'string';
 
-    const TYPES_CREDIT = ['PAIEMENT_CLIENT', 'REVERSEMENT', 'REVERSEMENT_ESCROW'];
+    const TYPES_CREDIT = ['PAIEMENT_CLIENT', 'REVERSEMENT', 'REVERSEMENT_ESCROW', 'REMBOURSEMENT_COTISATION'];
 
     const TYPES_DEBIT = [
         'EPARGNE', 'COTISATION_CNPS', 'COTISATION_AMU', 'COTISATION_PERSONNALISEE',
@@ -81,5 +81,10 @@ class Operation extends Model
     public function reversementOperations(): HasMany
     {
         return $this->hasMany(ReversementOperation::class);
+    }
+
+    public function remboursement(): HasOne
+    {
+        return $this->hasOne(Remboursement::class, 'operation_id');
     }
 }

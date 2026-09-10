@@ -45,6 +45,10 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Acceptation des CGU — obtenue via la modale affichée avant ce
+            // formulaire (POST /cgu/accepter), rattachée au compte créé ici.
+            'cgu_acceptation_id' => ['required', 'uuid', 'exists:cgu_acceptations,id'],
+
             // IDENTITE DU TRAVAILLEUR
             'nom' => ['required', 'string', 'max:255'],
             'prenom' => ['required', 'string', 'max:255'],
@@ -109,6 +113,9 @@ class StoreUserRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'cgu_acceptation_id.required' => "L'acceptation des CGU est obligatoire.",
+            'cgu_acceptation_id.exists' => "L'acceptation des CGU est introuvable ou invalide.",
+
             'nom.required' => 'Le nom est obligatoire.',
             'nom.string' => 'Le nom doit être une chaîne de caractères.',
             'nom.max' => 'Le nom ne doit pas dépasser :max caractères.',

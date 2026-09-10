@@ -43,6 +43,11 @@ class InscriptionService
                 'type_carte' => 'BASIC'
             ]);
 
+            // Rattache l'acceptation des CGU (faite avant la création du
+            // compte, via la modale au tap « S'inscrire ») au compte
+            // fraîchement créé — même transaction, atomique.
+            app(CguService::class)->rattacherAUtilisateur($data['cgu_acceptation_id'], $user);
+
             // Enregistrer les informations professionnelles
             InformationProfessionnelle::create([
                 'user_id' => $user->id,

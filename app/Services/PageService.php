@@ -63,6 +63,8 @@ class PageService
 
         AuditLogger::log('CREATE', $admin, 'pages', $page->id, null, $page->toArray());
 
+        app(CguService::class)->synchroniserVersionCgu($page);
+
         return ['success' => true, 'data' => $page->load(['createur', 'modificateur'])];
     }
 
@@ -91,6 +93,8 @@ class PageService
 
         AuditLogger::log('UPDATE', $admin, 'pages', $page->id, $avant, $page->fresh()->toArray());
 
+        app(CguService::class)->synchroniserVersionCgu($page->fresh());
+
         return ['success' => true, 'data' => $page->load(['createur', 'modificateur'])];
     }
 
@@ -106,6 +110,8 @@ class PageService
         ]);
 
         AuditLogger::log('UPDATE', $admin, 'pages', $page->id, $avant, ['statut' => 'PUBLIE']);
+
+        app(CguService::class)->synchroniserVersionCgu($page);
 
         return ['success' => true, 'data' => $page];
     }

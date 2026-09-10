@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Operation;
+use App\Models\ReglePrelevement;
 use App\Models\TypeCotisation;
 use App\Models\User;
 use Carbon\Carbon;
@@ -10,6 +11,17 @@ use Illuminate\Support\Collection;
 
 class RecapitulatifService
 {
+    // Argent effectivement reçu par l'utilisateur : paiements clients, mais
+    // aussi les remboursements de prélèvements erronés (panel admin) — un
+    // remboursement restitue de l'argent exactement comme un paiement, sans
+    // altérer l'opération originale (conservée pour traçabilité).
+    private const TYPES_RECU = [
+        'PAIEMENT_CLIENT',
+        'REVERSEMENT',
+        'REVERSEMENT_ESCROW',
+        'REMBOURSEMENT_COTISATION',
+    ];
+
     private const TYPES_COTISATIONS = [
         'COTISATION_CNPS',
         'COTISATION_AMU',
@@ -44,7 +56,7 @@ class RecapitulatifService
             ->with('type_cotisation')
             ->get();
 
-        $totalRecu       = $this->somme($operations, ['PAIEMENT_CLIENT', 'REVERSEMENT', 'REVERSEMENT_ESCROW']);
+        $totalRecu       = $this->somme($operations, self::TYPES_RECU);
         $cotisations     = $this->ventilerCotisations($operations);
         $totalCotisations= $cotisations->sum('montant');
         $commissions     = $this->ventilerCommissions($operations);
@@ -74,21 +86,31 @@ class RecapitulatifService
     /**
      * Objectif mensuel total, indépendant de la période affichée (c'est une
      * cible déclarée/configurée, pas un montant effectivement mouvementé) :
-     *  - CNPS   : `declaration_revenus.montant_cotisation_mensuelle` déclaré
-     *             par l'utilisateur à l'inscription ;
-     *  - AMU et cotisations personnalisées : `type_cotisations.montant_paiement_mensuel`
-     *    de chaque type actif (global ou propre à l'utilisateur) — source de
-     *    vérité du suivi de conformité, distincte de `default_valeur` (qui ne
-     *    sert qu'à pré-remplir le taux/montant d'une règle de prélèvement).
+     *  - CNPS : `declaration_revenus.montant_cotisation_mensuelle` déclaré
+     *           par l'utilisateur à l'inscription ;
+     *  - AMU (obligatoire, compte toujours) et cotisations personnalisées
+     *    (comptent seulement si l'utilisateur les a adoptées) :
+     *    `type_cotisations.montant_paiement_mensuel` de chaque type actif —
+     *    source de vérité du suivi de conformité, distincte de
+     *    `default_valeur` (qui ne sert qu'à pré-remplir le taux/montant d'une
+     *    règle de prélèvement).
+     *
+     * `type_cotisations` est un catalogue commun à tous les utilisateurs
+     * (plus de colonne `user_id`) : l'adoption d'un type par un utilisateur
+     * se lit uniquement via l'existence d'une `ReglePrelevement` le liant à
+     * ce type, jamais via une relation directe sur `type_cotisations`.
      */
     private function calculerObjectifMensuel(User $user): float
     {
         $objectifCnps = (float) ($user->declarationRevenu?->montant_cotisation_mensuelle ?? 0);
 
+        $typesAdoptesIds = ReglePrelevement::where('user_id', $user->id)
+            ->pluck('type_cotisation_id');
+
         $autresTypes = TypeCotisation::where('est_actif', true)
             ->where('code', '!=', 'CNPS')
-            ->where(function ($q) use ($user) {
-                $q->whereNull('user_id')->orWhere('user_id', $user->id);
+            ->where(function ($q) use ($typesAdoptesIds) {
+                $q->where('est_obligatoire', true)->orWhereIn('id', $typesAdoptesIds);
             })
             ->get();
 
@@ -111,7 +133,7 @@ class RecapitulatifService
             ->where('statut', 'SUCCES')
             ->get(['type_operation', 'montant']);
 
-        $totalRecu        = $this->somme($operations, ['PAIEMENT_CLIENT', 'REVERSEMENT', 'REVERSEMENT_ESCROW']);
+        $totalRecu        = $this->somme($operations, self::TYPES_RECU);
         $totalCotisations = $this->somme($operations, self::TYPES_COTISATIONS);
         $totalCommissions = $this->somme($operations, self::TYPES_COMMISSIONS);
         $totalEpargne     = $this->somme($operations, ['EPARGNE']);

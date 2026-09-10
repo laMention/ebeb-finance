@@ -25,6 +25,13 @@ Route::middleware('plateforme.actif')->group(function () {
         });
     });
 
+    // CGU — modale d'acceptation avant l'inscription, pas encore de token
+    // disponible à ce stade.
+    Route::prefix('cgu')->middleware('throttle:30,1')->group(function () {
+        Route::get('version-active', [\App\Http\Controllers\Apiv1\CguController::class, 'versionActive']);
+        Route::post('accepter', [\App\Http\Controllers\Apiv1\CguController::class, 'accepter']);
+    });
+
     // Webhook paiements (public — validé par X-Webhook-Secret)
     Route::prefix('paiements')->group(function () {
         Route::post('webhook', [\App\Http\Controllers\Apiv1\PaiementEntrantController::class, 'webhook']);
@@ -263,6 +270,13 @@ Route::middleware(['plateforme.actif', 'plateforme.surface:PANEL_ADMIN'])->group
                 Route::prefix('transactions')->middleware('admin.perm:transactions.view')->group(function () {
                     Route::get('/', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'index']);
                     Route::get('/{operation}', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'show']);
+
+                    // Remboursement d'un prélèvement erroné — permission dédiée,
+                    // distincte de la simple consultation.
+                    Route::middleware('admin.perm:transactions.rembourser')->group(function () {
+                        Route::get('/{operation}/eligibilite-remboursement', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'eligibiliteRemboursement']);
+                        Route::post('/{operation}/rembourser', [\App\Http\Controllers\Apiv1\Admin\TransactionController::class, 'rembourser']);
+                    });
                 });
 
                 // Types de cotisation

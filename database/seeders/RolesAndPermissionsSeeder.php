@@ -77,8 +77,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'transactions' => [
                 'label' => 'Transactions',
                 'permissions' => [
-                    'view'   => 'Consulter les transactions',
-                    'export' => 'Exporter les transactions',
+                    'view'        => 'Consulter les transactions',
+                    'export'      => 'Exporter les transactions',
+                    'rembourser'  => 'Rembourser un prélèvement',
                 ],
             ],
 

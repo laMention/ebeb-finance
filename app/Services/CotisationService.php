@@ -98,6 +98,52 @@ class CotisationService
     }
 
     /**
+     * Décrémente une ligne `Cotisation` mensuelle suite au remboursement d'un
+     * versement erroné (panel admin) — miroir inversé de `enregistrerVersement()`,
+     * ciblant le mois/année de l'OPÉRATION D'ORIGINE (jamais `now()`, contrairement
+     * à `enregistrerVersement()`), puisqu'on corrige un versement passé.
+     *
+     * Limite connue : ne réordonne pas `marquerObjectifAnnuelAtteint()` sur
+     * d'autres mois si l'objectif annuel avait été marqué atteint à tort à
+     * cause du montant erroné (cas rare) — correction manuelle admin si besoin.
+     * Retourne `null` si aucune ligne `Cotisation` ne correspond (rien à ajuster).
+     */
+    public function reverserVersement(
+        User $user,
+        string $typeCotisationId,
+        float $montant,
+        \DateTimeInterface $dateOperationOriginale
+    ): ?Cotisation {
+        $mois  = (int) $dateOperationOriginale->format('n');
+        $annee = (int) $dateOperationOriginale->format('Y');
+
+        $cotisation = Cotisation::where('user_id', $user->id)
+            ->where('type_cotisation_id', $typeCotisationId)
+            ->where('mois', $mois)
+            ->where('annee', $annee)
+            ->first();
+
+        if (!$cotisation) {
+            return null;
+        }
+
+        $montant      = (string) $montant;
+        $nouveauVerse = bcsub((string) $cotisation->montant_verse, $montant, 2);
+        $nouveauVerse = bccomp($nouveauVerse, '0.00', 2) > 0 ? $nouveauVerse : '0.00';
+
+        $tmp            = bcsub((string) $cotisation->montant_objectif, $nouveauVerse, 2);
+        $montantRestant = bccomp($tmp, '0.00', 2) > 0 ? $tmp : '0.00';
+
+        $cotisation->update([
+            'montant_verse'   => $nouveauVerse,
+            'montant_restant' => $montantRestant,
+            'statut'          => $this->calculerStatut($nouveauVerse, (string) $cotisation->montant_objectif),
+        ]);
+
+        return $cotisation->fresh();
+    }
+
+    /**
      * Applique les reports de l'année précédente sur la première cotisation de la nouvelle année.
      * À appeler au premier paiement de chaque nouvelle année, ou via un job planifié.
      */

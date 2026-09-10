@@ -397,6 +397,18 @@ class NotificationService
         ]);
     }
 
+    /**
+     * Remboursement d'un prélèvement erroné, déclenché par un administrateur
+     * (voir `RemboursementService`).
+     */
+    public function notifierRemboursement(User $user, float $montant, string $libelleCotisation): void
+    {
+        $this->envoyerNotification($user->id, 'IN_APP', 'REMBOURSEMENT_COTISATION', [
+            'titre'   => "Remboursement {$libelleCotisation}",
+            'message' => "Un montant de {$this->fcfa($montant)} prélevé à tort pour {$libelleCotisation} vous a été remboursé.",
+        ]);
+    }
+
     public function notifierDeductionAssurance(User $user, float $montant, string $libelleAssurance): void
     {
         $this->envoyerNotification($user->id, 'IN_APP', 'DEDUCTION_ASSURANCE', [

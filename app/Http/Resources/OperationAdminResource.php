@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Operation;
+use App\Models\Remboursement;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -68,6 +69,10 @@ class OperationAdminResource extends JsonResource
                 'type_operation' => $this->operation_parent->type_operation,
                 'montant'        => (float) $this->operation_parent->montant,
             ] : null),
+
+            // Permet au panel admin d'afficher/masquer le bouton « Rembourser »
+            // sans aller-retour supplémentaire.
+            'deja_rembourse' => $this->whenLoaded('remboursement', fn () => $this->remboursement !== null),
         ];
     }
 
@@ -85,6 +90,7 @@ class OperationAdminResource extends JsonResource
             'VIREMENT'                 => 'Virement Mobile Money',
             'REVERSEMENT'              => 'Reversement',
             'REVERSEMENT_ESCROW'       => 'Libération escrow',
+            'REMBOURSEMENT_COTISATION' => 'Remboursement',
             'REPORT_COTISATION'        => 'Report cotisation',
             'AJUSTEMENT'               => 'Ajustement',
             'ESCROW'                   => 'Blocage escrow',
