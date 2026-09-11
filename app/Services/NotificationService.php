@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\NotificationMail;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\Sms\SmsProviderFactory;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -196,19 +197,26 @@ class NotificationService
     private function envoyerSMS(User $user, array $contenu): array
     {
         try {
-            // Intégration avec un service SMS (Twilio, Orange SMS, etc.)
-            // Exemple avec un service SMS fictif
-            /*
-            $smsService = new SMSService();
-            $smsService->send($user->telephone, $contenu['message']);
-            */
-            
-            Log::info('SMS envoyé', [
-                'user_id' => $user->id,
-                'telephone' => $user->telephone,
-                'message' => $contenu['message'] ?? 'Notification'
-            ]);
-            
+            $cfg = app(NotificationConfigService::class)->getParCanal('SMS');
+            $conf = [...$cfg['configuration'], 'fournisseur' => $cfg['fournisseur']];
+
+            $resultat = app(SmsProviderFactory::class)
+                ->resoudre($cfg['fournisseur'])
+                ->envoyer($user->telephone, $contenu['message'] ?? 'Notification', $conf);
+
+            if (!$resultat['success']) {
+                Log::warning('Échec envoi SMS', [
+                    'user_id' => $user->id,
+                    'telephone' => $user->telephone,
+                    'erreur' => $resultat['message'] ?? null,
+                ]);
+
+                return [
+                    'envoye' => false,
+                    'error' => $resultat['message'] ?? 'Échec de l\'envoi SMS',
+                ];
+            }
+
             return [
                 'envoye' => true,
                 'canal' => 'sms',

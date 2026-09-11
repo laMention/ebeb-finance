@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Administrateur;
 use App\Models\NotificationConfig;
+use App\Services\Sms\SmsProviderFactory;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -15,6 +16,10 @@ class NotificationConfigService
 {
     private const CANAUX = ['SMS', 'EMAIL', 'PUSH', 'IN_APP'];
     private const CACHE_TTL = 300; // 5 min
+
+    public function __construct(private SmsProviderFactory $smsProviderFactory)
+    {
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Lecture
@@ -125,7 +130,7 @@ class NotificationConfigService
         $conf = $cfg->configuration;
 
         return match ($canalUp) {
-            'SMS'   => $this->testerSMS($conf),
+            'SMS'   => $this->testerSMS([...$conf, 'fournisseur' => $cfg->fournisseur]),
             'EMAIL' => $this->testerEmail($conf, $admin),
             'PUSH'  => $this->testerPush($conf),
             'IN_APP'=> ['success' => true, 'message' => 'Canal In-App opérationnel.'],
@@ -139,29 +144,19 @@ class NotificationConfigService
 
     private function testerSMS(array $conf): array
     {
-        $apiUrl  = $conf['api_url']  ?? null;
-        $apiKey  = $conf['api_key']  ?? null;
-        $sender  = $conf['sender_id'] ?? 'E-BEB';
+        $testPhone = $conf['test_phone'] ?? null;
 
-        if (!$apiUrl || !$apiKey) {
-            return ['success' => false, 'message' => 'Configuration SMS incomplète (api_url ou api_key manquant).'];
+        if (!$testPhone) {
+            return ['success' => false, 'message' => "Aucun téléphone de test configuré (configuration.test_phone)."];
         }
 
-        try {
-            $response = Http::withToken($apiKey)->timeout(10)->post($apiUrl, [
-                'sender'  => $sender,
-                'message' => 'Test SMS E-BEB Finance — ' . now()->format('d/m/Y H:i'),
-                'to'      => $conf['test_phone'] ?? '00000000',
-            ]);
+        $provider = $this->smsProviderFactory->resoudre($conf['fournisseur'] ?? null);
 
-            if ($response->successful()) {
-                return ['success' => true, 'message' => 'SMS test envoyé avec succès.'];
-            }
-
-            return ['success' => false, 'message' => 'Échec SMS : ' . ($response->json('message') ?? $response->status())];
-        } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Erreur connexion SMS : ' . $e->getMessage()];
-        }
+        return $provider->envoyer(
+            $testPhone,
+            'Test SMS E-BEB Finance — ' . now()->format('d/m/Y H:i'),
+            $conf,
+        );
     }
 
     private function testerEmail(array $conf, ?Administrateur $admin): array

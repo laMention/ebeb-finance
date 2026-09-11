@@ -51,6 +51,12 @@ class NotificationConfigController extends BaseController
             'configuration.sender_id'   => 'nullable|string|max:20',
             'configuration.project_id'  => 'nullable|string|max:255',
             'configuration.provider'    => 'nullable|string|max:100',
+            // Chemin d'API (ex. `/sms/2/text/advanced` pour Infobip) et
+            // téléphone de test — sans ça, `configuration.*` non listées
+            // sont silencieusement supprimées par la validation même si le
+            // formulaire les envoie déjà.
+            'configuration.endpoint'    => 'nullable|string|max:255',
+            'configuration.test_phone'  => 'nullable|string|max:20',
         ]);
 
         $result = $this->configService->sauvegarder($canal, $validated);
@@ -97,6 +103,10 @@ class NotificationConfigController extends BaseController
             null,
             ['canal' => strtoupper($canal), 'success' => $result['success']]
         );
+
+        if (!$result['success']) {
+            return $this->sendError($result['message'] ?? 'Échec du test.', [], 422);
+        }
 
         return $this->sendResponse($result, $result['message'] ?? 'Test effectué.');
     }
