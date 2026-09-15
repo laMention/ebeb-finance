@@ -69,6 +69,26 @@ class NotificationConfigService
         ];
     }
 
+    /**
+     * Configuration RÉELLE (non masquée) d'un canal — à utiliser uniquement
+     * pour un envoi effectif (SMS/Push réels, voir NotificationService).
+     * `getParCanal()` masque les secrets (`••••••••`) pour l'affichage panel
+     * admin : l'utiliser pour un envoi enverrait ce masque à la place de la
+     * vraie clé API, d'où un échec d'authentification chez le fournisseur.
+     */
+    public function getConfigurationEnvoi(string $canal): array
+    {
+        $config = NotificationConfig::where('canal', strtoupper($canal))->first();
+        if (!$config) {
+            return ['fournisseur' => null, 'configuration' => []];
+        }
+
+        return [
+            'fournisseur'   => $config->fournisseur,
+            'configuration' => $config->configuration,
+        ];
+    }
+
     public function estActif(string $canal): bool
     {
         $canalUp = strtoupper($canal);

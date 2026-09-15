@@ -205,7 +205,9 @@ class NotificationService
     public function envoyerSMS(User $user, array $contenu): array
     {
         try {
-            $cfg = app(NotificationConfigService::class)->getParCanal('SMS');
+            // getConfigurationEnvoi() (non masquée) — getParCanal() renverrait
+            // '••••••••' à la place de la vraie clé API pour un envoi réel.
+            $cfg = app(NotificationConfigService::class)->getConfigurationEnvoi('SMS');
             $conf = [...$cfg['configuration'], 'fournisseur' => $cfg['fournisseur']];
 
             $resultat = app(SmsProviderFactory::class)
@@ -259,7 +261,9 @@ class NotificationService
                 ];
             }
 
-            $cfg = app(NotificationConfigService::class)->getParCanal('PUSH');
+            // getConfigurationEnvoi() (non masquée) — getParCanal() renverrait
+            // '••••••••' à la place du vrai compte de service pour un envoi réel.
+            $cfg = app(NotificationConfigService::class)->getConfigurationEnvoi('PUSH');
             $messaging = app(PushMessagingFactory::class)->depuisConfiguration($cfg['configuration']);
 
             $message = CloudMessage::new()->withNotification(FirebaseNotification::create(
