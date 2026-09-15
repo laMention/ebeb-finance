@@ -196,9 +196,13 @@ class NotificationService
     }
 
     /**
-     * Envoyer par SMS
+     * Envoyer par SMS.
+     *
+     * Public : réutilisé directement par OtpService pour l'envoi multicanal
+     * des codes OTP, sans passer par envoyerNotification() (qui créerait à
+     * tort une ligne Notification pour un canal autre qu'IN_APP).
      */
-    private function envoyerSMS(User $user, array $contenu): array
+    public function envoyerSMS(User $user, array $contenu): array
     {
         try {
             $cfg = app(NotificationConfigService::class)->getParCanal('SMS');
@@ -239,8 +243,11 @@ class NotificationService
      * à tous les appareils enregistrés de l'utilisateur. Un jeton que Firebase
      * signale comme invalide/désinstallé est supprimé immédiatement de
      * `device_tokens` (pas d'accumulation de jetons morts).
+     *
+     * Public : réutilisé directement par OtpService (voir envoyerSMS()
+     * ci-dessus pour la raison).
      */
-    private function envoyerPush(User $user, array $contenu): array
+    public function envoyerPush(User $user, array $contenu): array
     {
         try {
             $tokens = DeviceToken::where('user_id', $user->id)->pluck('token', 'id');

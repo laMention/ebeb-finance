@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\DeviceToken;
+use App\Models\Notification;
 use App\Models\SessionOtp;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
@@ -12,8 +14,20 @@ class OtpService
 {
     private const OTP_LENGTH = 6;
 
+    public function __construct(
+        private NotificationConfigService $notificationConfigService,
+        private NotificationService       $notificationService,
+        private NotificationLogService    $notificationLogService,
+    ) {
+    }
+
     /**
-     * Génère et envoie un code OTP à un utilisateur
+     * Génère et envoie un code OTP à un utilisateur, par tous les canaux
+     * actuellement activés dans la configuration des notifications
+     * (EMAIL / SMS / PUSH / IN_APP) — un seul code est généré, le même est
+     * transmis sur chaque canal actif. Un canal actif mais sans destinataire
+     * exploitable pour cet utilisateur (pas d'email, pas de jeton d'appareil…)
+     * est simplement ignoré, sans faire échouer les autres.
      *
      * @param User|string $user L'utilisateur ou son télephone
      * @param string $contexte Motif de l'envoi (inscription, connexion,
@@ -21,12 +35,10 @@ class OtpService
      *   ne filtre jamais par ce champ (voir `verify()`).
      * @return array Retourne le code OTP et le message
      */
-    public function generateAndSend($user, string $contexte = 'Verification numuméro de télephone du travailleur indépendant'): array
+    public function generateAndSend($user, string $contexte = 'Verification numéro de télephone du travailleur indépendant'): array
     {
         $user_id = $user instanceof User ? $user->id : $user;
 
-        // $user = User::where("id", $user->id)->first();
-        
         // Supprimer les anciens OTP non utilisés pour cet telephone
         SessionOtp::where('user_id', $user_id)->delete();
 
@@ -47,36 +59,136 @@ class OtpService
             'contexte' => $contexte,
         ]);
 
-        // Implementation de l'envoi par SMS plutard
+        $minutes = max(1, (int) ceil($dureeSecondes / 60));
+        $texte   = "Votre code de vérification E-BEB Finance est : {$code}. "
+            . "Il expire dans {$minutes} minute(s). Ne le partagez avec personne.";
 
-        // Envoyer l'email avec le code OTP
-        if(isset($user->email) && !empty($user->email)) {
+        $canauxTentes  = [];
+        $canauxReussis = [];
+
+        // Email — canal historique, comportement inchangé (gabarit OtpMail dédié).
+        if ($this->notificationConfigService->estActif('EMAIL') && !empty($user->email)) {
+            $canauxTentes[] = 'EMAIL';
             try {
-
                 Mail::to($user->email)->send(new OtpMail($code));
-                return [
-                    'success' => true,
-                    'message' => 'Un code OTP a été envoyé à votre adresse e-mail.',
-                ];
+                $canauxReussis[] = 'email';
+                $this->journaliser('EMAIL', $user, 'ENVOYE');
             } catch (\Exception $e) {
-                // Supprimer l'OTP si l'email n'a pas pu être envoyé
-                SessionOtp::where('user_id', $user->id)->delete();
-                \Log::error(''. $e->getMessage());
-                
-                return [
-                    'success' => false,
-                    'message' => 'Erreur lors de l\'envoi du code OTP. Veuillez réessayer.',
-                ];
+                \Log::error('Échec envoi OTP par email : ' . $e->getMessage());
+                $this->journaliser('EMAIL', $user, 'ECHEC', $e->getMessage());
             }
-        
-        }else{
-            // Envoyer une reponse impossible d'envoyer par mail
-            return [
-                    'success' => false,
-                    'message' => 'Erreur lors de l\'envoi du code OTP. Veuillez réessayer. Adresse email non renseignée',
-                ];
         }
 
+        // SMS
+        if ($this->notificationConfigService->estActif('SMS') && !empty($user->telephone)) {
+            $canauxTentes[] = 'SMS';
+            $resultat = $this->notificationService->envoyerSMS($user, ['message' => $texte]);
+            if ($resultat['envoye']) {
+                $canauxReussis[] = 'SMS';
+                $this->journaliser('SMS', $user, 'ENVOYE');
+            } else {
+                \Log::error('Échec envoi OTP par SMS : ' . ($resultat['error'] ?? 'erreur inconnue'));
+                $this->journaliser('SMS', $user, 'ECHEC', $resultat['error'] ?? null);
+            }
+        }
+
+        // Push — nécessite qu'un appareil ait déjà été enregistré (impossible
+        // pour le tout premier OTP d'un utilisateur qui n'a jamais ouvert
+        // l'application authentifiée).
+        if ($this->notificationConfigService->estActif('PUSH') && DeviceToken::where('user_id', $user->id)->exists()) {
+            $canauxTentes[] = 'PUSH';
+            $resultat = $this->notificationService->envoyerPush($user, [
+                'titre'   => 'Code de vérification',
+                'message' => $texte,
+            ]);
+            if ($resultat['envoye']) {
+                $canauxReussis[] = 'notification push';
+                $this->journaliser('PUSH', $user, 'ENVOYE');
+            } else {
+                \Log::error('Échec envoi OTP par push : ' . ($resultat['error'] ?? 'erreur inconnue'));
+                $this->journaliser('PUSH', $user, 'ECHEC', $resultat['error'] ?? null);
+            }
+        }
+
+        // In-App
+        if ($this->notificationConfigService->estActif('IN_APP')) {
+            $canauxTentes[] = 'IN_APP';
+            try {
+                Notification::create([
+                    'user_id'    => $user->id,
+                    'canal'      => 'IN_APP',
+                    'type'       => 'OTP',
+                    'titre'      => 'Code de vérification',
+                    'contenu'    => ['titre' => 'Code de vérification', 'message' => $texte],
+                    'est_envoye' => true,
+                    'envoye_le'  => now(),
+                    'est_lu'     => false,
+                ]);
+                $canauxReussis[] = 'notification in-app';
+                $this->journaliser('IN_APP', $user, 'ENVOYE');
+            } catch (\Exception $e) {
+                \Log::error('Échec création notification OTP in-app : ' . $e->getMessage());
+                $this->journaliser('IN_APP', $user, 'ECHEC', $e->getMessage());
+            }
+        }
+
+        if (empty($canauxTentes)) {
+            SessionOtp::where('user_id', $user->id)->delete();
+            return [
+                'success' => false,
+                'message' => "Aucun canal de notification n'est activé. Contactez l'administrateur.",
+            ];
+        }
+
+        if (empty($canauxReussis)) {
+            SessionOtp::where('user_id', $user->id)->delete();
+            return [
+                'success' => false,
+                'message' => 'Erreur lors de l\'envoi du code OTP. Veuillez réessayer.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Un code OTP a été envoyé par ' . $this->listerCanaux($canauxReussis) . '.',
+        ];
+    }
+
+    /** « email », « email et SMS », « email, SMS et notification push »… */
+    private function listerCanaux(array $canaux): string
+    {
+        if (count($canaux) === 1) {
+            return $canaux[0];
+        }
+        $dernier = array_pop($canaux);
+        return implode(', ', $canaux) . ' et ' . $dernier;
+    }
+
+    /**
+     * Journalise l'envoi d'un OTP dans l'historique des notifications (visible
+     * depuis le panel admin) — jamais le code lui-même, qui n'a rien à faire
+     * dans un journal consultable durablement.
+     */
+    private function journaliser(string $canal, User $user, string $statut, ?string $erreur = null): void
+    {
+        try {
+            $this->notificationLogService->enregistrer(
+                canal:            $canal,
+                typeNotification: 'OTP',
+                destinataire:     match ($canal) {
+                    'EMAIL' => $user->email ?? 'inconnu',
+                    'SMS'   => $user->telephone ?? 'inconnu',
+                    default => $user->id,
+                },
+                statut:           $statut,
+                sujet:            'Code de vérification',
+                contenu:          'Code de vérification (OTP)',
+                messageErreur:    $erreur,
+                userId:           $user->id,
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Impossible de journaliser l\'envoi OTP', ['error' => $e->getMessage()]);
+        }
     }
 
     /**
