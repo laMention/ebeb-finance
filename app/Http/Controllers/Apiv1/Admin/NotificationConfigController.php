@@ -57,6 +57,10 @@ class NotificationConfigController extends BaseController
             // formulaire les envoie déjà.
             'configuration.endpoint'    => 'nullable|string|max:255',
             'configuration.test_phone'  => 'nullable|string|max:20',
+            // Compte de service Google (JSON complet, requis par l'API FCM
+            // HTTP v1) — plusieurs Ko, largement au-delà du max:500 prévu
+            // pour une simple clé API.
+            'configuration.service_account_json' => 'nullable|string|max:10000',
         ]);
 
         $result = $this->configService->sauvegarder($canal, $validated);

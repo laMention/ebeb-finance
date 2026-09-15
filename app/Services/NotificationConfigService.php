@@ -3,22 +3,26 @@
 namespace App\Services;
 
 use App\Models\Administrateur;
+use App\Models\DeviceToken;
 use App\Models\NotificationConfig;
+use App\Services\Push\PushMessagingFactory;
 use App\Services\Sms\SmsProviderFactory;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
 
 class NotificationConfigService
 {
     private const CANAUX = ['SMS', 'EMAIL', 'PUSH', 'IN_APP'];
     private const CACHE_TTL = 300; // 5 min
 
-    public function __construct(private SmsProviderFactory $smsProviderFactory)
-    {
+    public function __construct(
+        private SmsProviderFactory $smsProviderFactory,
+        private PushMessagingFactory $pushMessagingFactory,
+    ) {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -191,34 +195,41 @@ class NotificationConfigService
         }
     }
 
+    /**
+     * Les jetons d'appareil (`device_tokens`) sont rattachés aux utilisateurs
+     * mobile (`User`), pas aux administrateurs — l'application mobile n'étant
+     * pas utilisée côté panel admin, un administrateur n'a jamais lui-même de
+     * jeton. Le test envoie donc au jeton le plus récemment enregistré dans le
+     * système, ce qui valide réellement la configuration Firebase ; un message
+     * clair invite à se connecter depuis un compte utilisateur réel si aucun
+     * jeton n'existe encore.
+     */
     private function testerPush(array $conf): array
     {
-        $apiKey    = $conf['api_key'] ?? null;
-        $projectId = $conf['project_id'] ?? null;
+        $deviceToken = DeviceToken::latest()->first();
 
-        if (!$apiKey) {
-            return ['success' => false, 'message' => 'Configuration Push incomplète (api_key manquant).'];
+        if (!$deviceToken) {
+            return [
+                'success' => false,
+                'message' => "Aucun appareil mobile enregistré pour le moment. Connectez-vous à l'application mobile avec un compte utilisateur réel pour générer un jeton, puis relancez le test.",
+            ];
         }
 
         try {
-            $response = Http::withHeaders([
-                'Authorization' => "key={$apiKey}",
-                'Content-Type'  => 'application/json',
-            ])->timeout(10)->post('https://fcm.googleapis.com/fcm/send', [
-                'to'           => '/topics/test',
-                'notification' => [
-                    'title' => 'Test Push — E-BEB Finance',
-                    'body'  => 'Test de notification push ' . now()->format('d/m/Y H:i'),
-                ],
-            ]);
+            $messaging = $this->pushMessagingFactory->depuisConfiguration($conf);
 
-            if ($response->successful()) {
-                return ['success' => true, 'message' => 'Notification push test envoyée.'];
-            }
+            $message = CloudMessage::new()
+                ->withNotification(FirebaseNotification::create(
+                    'Test Push — E-BEB Finance',
+                    'Test de notification push ' . now()->format('d/m/Y H:i'),
+                ))
+                ->withToken($deviceToken->token);
 
-            return ['success' => false, 'message' => 'Échec push : ' . ($response->json('error') ?? $response->status())];
+            $messaging->send($message);
+
+            return ['success' => true, 'message' => 'Notification push test envoyée à un appareil enregistré.'];
         } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Erreur connexion push : ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Échec push : ' . $e->getMessage()];
         }
     }
 
@@ -232,7 +243,7 @@ class NotificationConfigService
         $sensitive = match (strtoupper($canal)) {
             'SMS'   => ['api_key', 'api_secret'],
             'EMAIL' => ['password'],
-            'PUSH'  => ['api_key'],
+            'PUSH'  => ['service_account_json'],
             default => [],
         };
 
@@ -252,7 +263,7 @@ class NotificationConfigService
         $sensitive = match ($canal) {
             'SMS'   => ['api_key', 'api_secret'],
             'EMAIL' => ['password'],
-            'PUSH'  => ['api_key'],
+            'PUSH'  => ['service_account_json'],
             default => [],
         };
 

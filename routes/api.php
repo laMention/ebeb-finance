@@ -132,6 +132,12 @@ Route::middleware('plateforme.actif')->group(function () {
                 });
             });
 
+            // Jeton FCM de l'appareil (notifications push)
+            Route::prefix('device-token')->group(function () {
+                Route::post('/', [\App\Http\Controllers\Apiv1\DeviceTokenController::class, 'store']);
+                Route::delete('/', [\App\Http\Controllers\Apiv1\DeviceTokenController::class, 'destroy']);
+            });
+
             // Notifications
             Route::prefix('notifications')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Apiv1\NotificationController::class, 'index']);

@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Mail\NotificationMail;
+use App\Models\DeviceToken;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\Push\PushMessagingFactory;
 use App\Services\Sms\SmsProviderFactory;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
 
 class NotificationService
 {
@@ -231,24 +235,66 @@ class NotificationService
     }
 
     /**
-     * Envoyer une notification push
+     * Envoyer une notification push (FCM HTTP v1 via kreait/laravel-firebase)
+     * à tous les appareils enregistrés de l'utilisateur. Un jeton que Firebase
+     * signale comme invalide/désinstallé est supprimé immédiatement de
+     * `device_tokens` (pas d'accumulation de jetons morts).
      */
     private function envoyerPush(User $user, array $contenu): array
     {
         try {
-            // Intégration avec Firebase Cloud Messaging ou autre service push
+            $tokens = DeviceToken::where('user_id', $user->id)->pluck('token', 'id');
+
+            if ($tokens->isEmpty()) {
+                return [
+                    'envoye' => false,
+                    'error' => 'Aucun appareil enregistré pour cet utilisateur.',
+                ];
+            }
+
+            $cfg = app(NotificationConfigService::class)->getParCanal('PUSH');
+            $messaging = app(PushMessagingFactory::class)->depuisConfiguration($cfg['configuration']);
+
+            $message = CloudMessage::new()->withNotification(FirebaseNotification::create(
+                $contenu['titre'] ?? 'E-BEB Finance',
+                $contenu['message'] ?? '',
+            ));
+
+            $rapport = $messaging->sendMulticast($message, $tokens->values()->all());
+
+            $jetonsInvalides = [...$rapport->invalidTokens(), ...$rapport->unknownTokens()];
+            if (!empty($jetonsInvalides)) {
+                DeviceToken::whereIn('token', $jetonsInvalides)->delete();
+                Log::info('Jetons FCM invalides supprimés', [
+                    'user_id' => $user->id,
+                    'nombre'  => count($jetonsInvalides),
+                ]);
+            }
+
+            if ($rapport->successes()->count() === 0) {
+                return [
+                    'envoye' => false,
+                    'error' => 'Échec de l\'envoi sur tous les appareils enregistrés.',
+                ];
+            }
+
             Log::info('Push notification envoyée', [
                 'user_id' => $user->id,
-                'title' => $contenu['titre'] ?? 'Notification',
-                'body' => $contenu['message'] ?? ''
+                'reussis' => $rapport->successes()->count(),
+                'echecs'  => $rapport->failures()->count(),
             ]);
-            
+
             return [
                 'envoye' => true,
                 'canal' => 'push',
-                'details' => 'Push notification envoyée'
+                'details' => "Push notification envoyée à {$rapport->successes()->count()} appareil(s)",
             ];
         } catch (\Exception $e) {
+            Log::error('Erreur envoi push', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
             return [
                 'envoye' => false,
                 'error' => $e->getMessage()
